@@ -1,0 +1,101 @@
+{
+  "name": "dsh-client",
+  "version": "0.3.0",
+  "description": "Electron desktop client for DeepSeek Harness (dsh) — single-file Windows portable wrapper with command palette, splash screen, log viewer, and persistent window memory.",
+  "main": "main.js",
+  "author": {
+    "name": "dsh-client contributors",
+    "url": "https://github.com/yourname/dsh-client"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/yourname/dsh-client#readme",
+  "bugs": {
+    "url": "https://github.com/yourname/dsh-client/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourname/dsh-client.git"
+  },
+  "keywords": [
+    "electron",
+    "deepseek",
+    "dsh",
+    "deepseek-harness",
+    "desktop",
+    "windows",
+    "portable",
+    "ai",
+    "chatbot",
+    "wrapper"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "test": "node --check main.js && node --check preload.js && echo \"syntax OK\"",
+    "build": "electron-builder --win",
+    "dist": "electron-builder --win",
+    "build:portable": "electron-builder --win portable",
+    "build:nsis": "electron-builder --win nsis",
+    "pack": "electron-builder --dir"
+  },
+  "devDependencies": {
+    "electron": "^32.2.0",
+    "electron-builder": "^25.1.8",
+    "eslint": "^9.13.0",
+    "prettier": "^3.3.3"
+  },
+  "build": {
+    "appId": "com.deepseek.dsh-client",
+    "productName": "DeepSeek Harness",
+    "copyright": "Copyright © 2026 dsh-client contributors",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "styles.css",
+      "splash.html",
+      "package.json",
+      "icon.ico",
+      "icon.png",
+      "icon-256.png",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/*.{md,markdown}"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "icon": "icon.ico"
+    },
+    "portable": {
+      "artifactName": "dsh-client-portable-${version}.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "DeepSeek Harness"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "yourname",
+        "repo": "dsh-client"
+      }
+    ]
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  }
+}

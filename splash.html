@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:;" />
+  <title>DeepSeek Harness 启动中</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%;
+      background: linear-gradient(135deg, #0A2540 0%, #14365E 100%);
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      overflow: hidden;
+      user-select: none;
+    }
+    .wrap {
+      width: 100%; height: 100%;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 28px 36px;
+    }
+    .logo {
+      font-size: 42px; margin-bottom: 14px;
+      filter: drop-shadow(0 0 18px rgba(255, 122, 69, 0.55));
+      animation: pulse 2.4s ease-in-out infinite;
+    }
+    .name {
+      font-size: 19px; font-weight: 600; letter-spacing: 0.5px;
+      color: #fff; margin-bottom: 4px;
+    }
+    .ver {
+      font-size: 11px; opacity: 0.55; margin-bottom: 22px;
+      letter-spacing: 0.6px;
+    }
+    .msg {
+      font-size: 13px; opacity: 0.85; text-align: center;
+      min-height: 18px; margin-bottom: 16px;
+      transition: opacity 0.2s;
+    }
+    .bar {
+      width: 100%; height: 4px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 2px; overflow: hidden;
+    }
+    .bar__fill {
+      height: 100%;
+      background: linear-gradient(90deg, #FF7A45 0%, #ffaa6a 100%);
+      width: 5%;
+      border-radius: 2px;
+      transition: width 0.3s ease;
+      box-shadow: 0 0 8px rgba(255, 122, 69, 0.7);
+    }
+    .err {
+      color: #ff8a8a;
+      background: rgba(255, 80, 80, 0.12);
+      padding: 10px 14px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 100, 100, 0.35);
+      margin-top: 6px;
+      font-size: 12px;
+      max-width: 100%;
+      word-break: break-all;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50%      { transform: scale(1.08); opacity: 0.85; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="logo">🧠</div>
+    <div class="name">DeepSeek Harness</div>
+    <div class="ver" id="ver">v—</div>
+    <div class="msg" id="msg">初始化…</div>
+    <div class="bar"><div class="bar__fill" id="fill"></div></div>
+    <div id="err"></div>
+  </div>
+  <script>
+    const { ipcRenderer } = require('electron');
+    const $ = id => document.getElementById(id);
+
+    ipcRenderer.on('splash:update', (_e, payload) => {
+      if (!payload) return;
+      if (payload.message) $('msg').textContent = payload.message;
+      if (typeof payload.progress === 'number') {
+        $('fill').style.width = Math.max(5, Math.min(100, payload.progress * 100)) + '%';
+      }
+      if (payload.phase === 'ready') {
+        $('fill').style.width = '100%';
+        $('msg').textContent = payload.message || '已就绪';
+      }
+      if (payload.phase === 'error') {
+        const e = $('err');
+        e.className = 'err';
+        e.textContent = payload.message || '启动失败';
+      }
+    });
+
+    // Read version via the same bridge as the main renderer.
+    fetch('../package.json').then(r => r.json()).then(pkg => {
+      $('ver').textContent = `v${pkg.version || '?'}`;
+    }).catch(() => {});
+  </script>
+</body>
+</html>

@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' http://127.0.0.1:3080 ws://127.0.0.1:3080; img-src 'self' data: blob: http: https:; style-src 'self' 'unsafe-inline'; script-src 'self';" />
+  <title>DeepSeek Harness</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body data-theme="dark">
+  <div class="title-bar" id="titleBar">
+    <div class="title-bar__brand">
+      <span class="title-bar__logo">🧠</span>
+      <span class="title-bar__title">DeepSeek Harness</span>
+      <span class="title-bar__pill" id="statusPill">连接中…</span>
+    </div>
+    <div class="title-bar__controls">
+      <button class="ctrl ctrl--palette" id="btnPalette" title="命令面板 (Ctrl+K)" aria-label="命令面板">
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <path fill="currentColor" d="M5 2h6a1 1 0 0 1 1 1v2h-1V3H5v2H4V3a1 1 0 0 1 1-1zm-2 5h10v1H3V7zm0 3h10v1H3v-1zm0 3h6v1H3v-1z"/>
+        </svg>
+      </button>
+      <button class="ctrl ctrl--log" id="btnLogs" title="查看日志 (Ctrl+Shift+L)" aria-label="日志">
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <path fill="currentColor" d="M3 2h7l3 3v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zm6 0v3h3l-3-3zM4 6h6v1H4V6zm0 2h6v1H4V8zm0 2h4v1H4v-1z"/>
+        </svg>
+      </button>
+      <button class="ctrl ctrl--path" id="btnPath" title="设置 dsh 路径" aria-label="dsh 路径">
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <path fill="currentColor" d="M1 4.5A1.5 1.5 0 0 1 2.5 3h3.379a1.5 1.5 0 0 1 1.06.44L8.94 5.44l.94-.94-1.06-1.06a2.5 2.5 0 0 0-1.768-.732H2.5a2.5 2.5 0 0 0-2.5 2.5v6.5A2.5 2.5 0 0 0 2.5 14H3v-1h-.5A1.5 1.5 0 0 1 1 11.5v-7zM9.5 4a2.5 2.5 0 0 0-2.5 2.5v6A2.5 2.5 0 0 0 9.5 15h4a2.5 2.5 0 0 0 2.5-2.5v-6A2.5 2.5 0 0 0 13.5 4h-4zm.5 4h3v1h-3V8zm0 2h3v1h-3v-1z"/>
+        </svg>
+      </button>
+      <button class="ctrl ctrl--theme" id="btnTheme" title="切换主题 (Ctrl+Shift+T)" aria-label="主题">🌙</button>
+      <button class="ctrl ctrl--screenshot" id="btnScreenshot" title="截图 (Ctrl+Shift+S)" aria-label="截图">
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <path fill="currentColor" d="M2 4a1 1 0 0 1 1-1h2l1-1.5h4L11 3h2a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4zm6 6.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/>
+        </svg>
+      </button>
+      <button class="ctrl ctrl--update" id="btnUpdate" title="检查更新" aria-label="检查更新">
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <path fill="currentColor" d="M8 1l4 4h-3v5H7V5H4l4-4zM2 12h12v2H2v-2z"/>
+        </svg>
+      </button>
+      <button class="ctrl ctrl--refresh" id="btnRefresh" title="刷新 dsh (Ctrl+R)" aria-label="刷新">
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <path fill="currentColor" d="M8 3V1L4 4l4 3V5a3 3 0 1 1-3 3H3a5 5 0 1 0 5-5z"/>
+        </svg>
+      </button>
+      <button class="ctrl ctrl--reloaddsh" id="btnReloadDsh" title="重新加载 dsh (Ctrl+Shift+R)" aria-label="重新加载 dsh">
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <path fill="currentColor" d="M11.5 1.5L13 3l-1.5 1.5L10 3l1.5-1.5zM3 11l1.5 1.5L6 11l-1.5-1.5L3 11zm10-6.5L11.5 6 13 7.5 14.5 6 13 4.5zM3 3l1.5 1.5L6 3 4.5 1.5 3 3zm5 9a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0-1a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/>
+        </svg>
+      </button>
+      <button class="ctrl ctrl--ext" id="btnBrowser" title="在浏览器中打开" aria-label="浏览器">
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <path fill="currentColor" d="M9 1v1h4.586L8.707 6.879l.707.707L14.293 2v4H15V1H9zM2 3v10h10V8h-1v4H3V4h4V3H2z"/>
+        </svg>
+      </button>
+      <button class="ctrl ctrl--about" id="btnAbout" title="关于" aria-label="关于">
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <path fill="currentColor" d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 13A6 6 0 1 1 8 2a6 6 0 0 1 0 12zM7 6h2v1H7V6zm0 2h2v5H7V8z"/>
+        </svg>
+      </button>
+      <span class="ctrl-sep"></span>
+      <button class="ctrl ctrl--min" id="btnMin" title="最小化" aria-label="最小化">─</button>
+      <button class="ctrl ctrl--max" id="btnMax" title="最大化" aria-label="最大化">▢</button>
+      <button class="ctrl ctrl--close" id="btnClose" title="关闭 (隐藏到托盘)" aria-label="关闭">✕</button>
+    </div>
+  </div>
+
+  <div class="content" id="content">
+    <iframe id="dshFrame"
+            src="http://127.0.0.1:3080"
+            allow="clipboard-read; clipboard-write; camera; microphone"
+            sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts allow-downloads"></iframe>
+  </div>
+
+  <!-- Toast for screenshot / update / command feedback -->
+  <div id="toast" class="toast" hidden></div>
+
+  <!-- ========== Command Palette (F1) ========== -->
+  <div id="commandPalette" class="palette" hidden>
+    <div class="palette__backdrop" data-palette-close></div>
+    <div class="palette__panel" role="dialog" aria-label="命令面板">
+      <input id="paletteInput" class="palette__input" type="text" autocomplete="off" spellcheck="false"
+             placeholder="输入命令名称或搜索… (↑↓ 选择, Enter 执行, Esc 关闭)" />
+      <ul id="paletteList" class="palette__list"></ul>
+      <div class="palette__hint">
+        <span>⌘K</span><span>↑↓</span><span>↵</span><span>Esc</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== About Modal (F2) ========== -->
+  <div id="aboutModal" class="modal" hidden>
+    <div class="modal__backdrop" data-about-close></div>
+    <div class="modal__panel" role="dialog" aria-label="关于">
+      <div class="about__hero">
+        <div class="about__logo">🧠</div>
+        <div class="about__name">DeepSeek Harness</div>
+        <div class="about__tag">dsh-client · Electron 桌面壳</div>
+      </div>
+      <dl class="about__kv">
+        <dt>应用版本</dt><dd id="aboutVersion">—</dd>
+        <dt>Electron</dt><dd id="aboutElectron">—</dd>
+        <dt>Node.js</dt><dd id="aboutNode">—</dd>
+        <dt>Chrome</dt><dd id="aboutChrome">—</dd>
+        <dt>平台</dt><dd id="aboutPlatform">—</dd>
+        <dt>dsh 二进制</dt><dd id="aboutDshBin" class="about__path">—</dd>
+        <dt>dsh 工作目录</dt><dd id="aboutDshCwd" class="about__path">—</dd>
+        <dt>DEEPSEEK_API_KEY</dt>
+        <dd id="aboutApiKey">
+          <span class="about__pill about__pill--warn" id="aboutApiKeyWarn">未设置</span>
+        </dd>
+      </dl>
+      <div class="about__links">
+        <a href="#" id="aboutLinkClient">📦 客户端仓库</a>
+        <a href="#" id="aboutLinkDsh">🤖 dsh 项目</a>
+        <a href="#" id="aboutLinkLicense">📜 MIT License</a>
+      </div>
+      <div class="about__footer">
+        <span>Copyright © 2026</span>
+        <button class="about__close" data-about-close>关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== Log Viewer (F9) ========== -->
+  <div id="logViewer" class="modal" hidden>
+    <div class="modal__backdrop" data-log-close></div>
+    <div class="modal__panel log__panel" role="dialog" aria-label="日志查看器">
+      <div class="log__header">
+        <input id="logSearch" class="log__search" type="text" placeholder="搜索日志 (Ctrl+F)" />
+        <button id="logRefresh" class="log__btn" title="刷新">↻</button>
+        <button id="logCopy" class="log__btn" title="复制全部到剪贴板">📋</button>
+        <button id="logClear" class="log__btn log__btn--danger" title="清空">🗑</button>
+        <button class="log__btn" data-log-close title="关闭">✕</button>
+      </div>
+      <pre id="logBody" class="log__body"></pre>
+      <div class="log__footer">
+        <span id="logMeta">加载中…</span>
+        <span class="log__hint">双击行可复制</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== dsh Path Picker (F6) ========== -->
+  <div id="pathModal" class="modal" hidden>
+    <div class="modal__backdrop" data-path-close></div>
+    <div class="modal__panel path__panel" role="dialog" aria-label="dsh 路径设置">
+      <div class="path__header">
+        <h3>⚙️ dsh 路径设置</h3>
+        <button class="log__btn" data-path-close title="关闭">✕</button>
+      </div>
+      <div class="path__row">
+        <label>可执行文件</label>
+        <input id="pathBin" type="text" readonly placeholder="未选择" />
+        <button id="pathPickBin" class="path__btn">选择…</button>
+      </div>
+      <div class="path__row">
+        <label>工作目录</label>
+        <input id="pathCwd" type="text" readonly placeholder="未选择" />
+        <button id="pathPickCwd" class="path__btn">选择…</button>
+      </div>
+      <div class="path__hint">
+        <span>设置会保存到 <code>userData/dsh-client-settings.json</code>。</span>
+      </div>
+      <div class="path__actions">
+        <button class="about__close" data-path-close>关闭</button>
+        <button id="pathApply" class="about__close about__close--primary">保存并重启 dsh</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // Lightweight UI glue — no framework, just wiring.
+    // ============================================================
+    const $ = id => document.getElementById(id);
+
+    const btnTheme      = $('btnTheme');
+    const btnScreenshot = $('btnScreenshot');
+    const btnUpdate     = $('btnUpdate');
+    const btnRefresh    = $('btnRefresh');
+    const btnReloadDsh  = $('btnReloadDsh');
+    const btnBrowser    = $('btnBrowser');
+    const btnDevtools   = null;
+    const btnMin        = $('btnMin');
+    const btnMax        = $('btnMax');
+    const btnClose      = $('btnClose');
+    const btnPalette    = $('btnPalette');
+    const btnLogs       = $('btnLogs');
+    const btnPath       = $('btnPath');
+    const btnAbout      = $('btnAbout');
+    const pill          = $('statusPill');
+    const frame         = $('dshFrame');
+    const titleBar      = $('titleBar');
+    const toast         = $('toast');
+
+    // ---------- Toast ----------
+    let toastTimer = null;
+    function showToast(msg, ms = 2400) {
+      toast.textContent = msg;
+      toast.hidden = false;
+      toast.classList.add('toast--show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.remove('toast--show');
+        setTimeout(() => { toast.hidden = true; }, 220);
+      }, ms);
+    }
+
+    // ---------- Theme ----------
+    function applyTheme(theme) {
+      document.body.dataset.theme = theme;
+      btnTheme.textContent = theme === 'dark' ? '☀️' : '🌙';
+      btnTheme.title = theme === 'dark'
+        ? '切换到浅色主题 (Ctrl+Shift+T)'
+        : '切换到深色主题 (Ctrl+Shift+T)';
+    }
+
+    btnTheme.onclick = async () => {
+      const t = await window.dsh.toggleTheme();
+      applyTheme(t);
+      showToast(`已切换到${t === 'dark' ? '深色' : '浅色'}主题`);
+    };
+
+    if (window.dsh && window.dsh.onThemeChanged) {
+      window.dsh.onThemeChanged(t => applyTheme(t));
+    }
+
+    // ---------- Screenshot ----------
+    btnScreenshot.onclick = () => doScreenshot();
+    if (window.dsh && window.dsh.onTriggerScreenshot) {
+      window.dsh.onTriggerScreenshot(() => doScreenshot());
+    }
+    if (window.dsh && window.dsh.onScreenshotSaved) {
+      window.dsh.onScreenshotSaved((payload) => {
+        if (payload && payload.error) {
+          showToast(`截图失败: ${payload.error}`, 3500);
+        } else if (payload && payload.filePath) {
+          showToast(`截图已保存: ${payload.filePath}`, 3500);
+        }
+      });
+    }
+    async function doScreenshot() {
+      showToast('正在截图…');
+      const result = await window.dsh.takeScreenshot();
+      if (result === null) showToast('截图已取消');
+    }
+
+    // ---------- Update ----------
+    btnUpdate.onclick = async () => {
+      showToast('正在检查更新…');
+      try {
+        const r = await window.dsh.checkUpdate();
+        if (r && r.updateAvailable) {
+          showToast(`发现新版本 v${r.latestVersion || '?'}`, 3500);
+        } else {
+          showToast(`已是最新版 v${r.currentVersion || '?'}`, 2800);
+        }
+      } catch (e) {
+        showToast(`检查更新失败: ${e.message}`, 3500);
+      }
+    };
+
+    // ---------- dsh lifecycle ----------
+    btnRefresh.onclick   = () => window.dsh.reload();
+    btnReloadDsh.onclick = () => {
+      window.dsh.reloadDsh();
+      showToast('正在重新加载 dsh…');
+    };
+    btnBrowser.onclick   = () => window.dsh.openInBrowser();
+    btnMin.onclick   = () => window.dsh.minimize();
+    btnMax.onclick   = () => { /* F11 / double-click on title bar */ };
+    btnClose.onclick = () => window.dsh.hide();
+
+    // ---------- Status pill ----------
+    function updatePill() {
+      try {
+        if (frame.contentWindow && frame.contentWindow.document && frame.contentWindow.document.readyState === 'complete') {
+          pill.textContent = '已连接';
+          pill.className = 'title-bar__pill title-bar__pill--ok';
+        } else {
+          pill.textContent = '加载中…';
+          pill.className = 'title-bar__pill';
+        }
+      } catch (e) {
+        pill.textContent = '已连接';
+        pill.className = 'title-bar__pill title-bar__pill--ok';
+      }
+    }
+    frame.addEventListener('load', updatePill);
+    setInterval(updatePill, 5000);
+
+    if (window.dsh && window.dsh.getVersion) {
+      window.dsh.getVersion().then(v => {
+        pill.title = `dsh-client v${v}`;
+      }).catch(() => {});
+    }
+
+    if (window.dsh && window.dsh.getTheme) {
+      window.dsh.getTheme().then(t => applyTheme(t)).catch(() => {});
+    }
+
+    // ============================================================
+    // F1 — Command Palette
+    // ============================================================
+    const PALETTE_COMMANDS = [
+      { id: 'theme.toggle',     label: '切换主题',                 hint: 'Ctrl+Shift+T', run: () => btnTheme.click() },
+      { id: 'screenshot.take',  label: '截图到文件',               hint: 'Ctrl+Shift+S', run: () => doScreenshot() },
+      { id: 'dsh.reload',       label: '刷新 dsh (iframe)',        hint: 'Ctrl+R',       run: () => window.dsh.reload() },
+      { id: 'dsh.restart',      label: '重启 dsh 子进程',          hint: 'Ctrl+Shift+R', run: () => { window.dsh.reloadDsh(); showToast('正在重新加载 dsh…'); } },
+      { id: 'update.check',     label: '检查更新',                                    run: () => btnUpdate.click() },
+      { id: 'open.browser',     label: '在系统浏览器中打开 dsh',                      run: () => window.dsh.openInBrowser() },
+      { id: 'window.hide',      label: '隐藏窗口到托盘',           hint: 'Ctrl+Shift+D', run: () => window.dsh.hide() },
+      { id: 'window.minimize',  label: '最小化窗口',                                  run: () => window.dsh.minimize() },
+      { id: 'logs.open',        label: '打开日志查看器',           hint: 'Ctrl+Shift+L', run: () => openLogViewer() },
+      { id: 'path.open',        label: '设置 dsh 路径…',                             run: () => openPathModal() },
+      { id: 'about.open',       label: '关于 DeepSeek Harness',                       run: () => openAbout() },
+      { id: 'palette.open',     label: '打开命令面板 (本条)',      hint: 'Ctrl+K',       run: () => openPalette() },
+      { id: 'app.quit',         label: '退出 (完全退出 + kill dsh)', hint: 'Ctrl+Shift+Q', run: () => window.dsh.quit() },
+    ];
+
+    const palette       = $('commandPalette');
+    const paletteInput  = $('paletteInput');
+    const paletteList   = $('paletteList');
+    let paletteFiltered = PALETTE_COMMANDS.slice();
+    let paletteActive   = 0;
+
+    function renderPalette() {
+      paletteList.innerHTML = '';
+      paletteFiltered.forEach((cmd, i) => {
+        const li = document.createElement('li');
+        li.className = 'palette__item' + (i === paletteActive ? ' palette__item--active' : '');
+        li.dataset.id = cmd.id;
+        li.innerHTML = `<span class="palette__label">${escapeHtml(cmd.label)}</span>` +
+                       (cmd.hint ? `<span class="palette__hint-inline">${escapeHtml(cmd.hint)}</span>` : '');
+        li.onclick = () => { runPaletteCommand(cmd); };
+        paletteList.appendChild(li);
+      });
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[c]);
+    }
+
+    function filterPalette(q) {
+      q = (q || '').trim().toLowerCase();
+      paletteFiltered = q
+        ? PALETTE_COMMANDS.filter(c => c.label.toLowerCase().includes(q) || c.id.toLowerCase().includes(q))
+        : PALETTE_COMMANDS.slice();
+      paletteActive = 0;
+      renderPalette();
+    }
+
+    function runPaletteCommand(cmd) {
+      closePalette();
+      try { cmd.run(); }
+      catch (e) { showToast(`命令失败: ${e.message}`, 3000); }
+    }
+
+    function openPalette() {
+      palette.hidden = false;
+      paletteInput.value = '';
+      filterPalette('');
+      setTimeout(() => paletteInput.focus(), 30);
+    }
+    function closePalette() {
+      palette.hidden = true;
+    }
+
+    paletteInput.addEventListener('input', () => filterPalette(paletteInput.value));
+    paletteInput.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        paletteActive = Math.min(paletteFiltered.length - 1, paletteActive + 1);
+        renderPalette();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        paletteActive = Math.max(0, paletteActive - 1);
+        renderPalette();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const cmd = paletteFiltered[paletteActive];
+        if (cmd) runPaletteCommand(cmd);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        closePalette();
+      }
+    });
+
+    palette.querySelectorAll('[data-palette-close]').forEach(el => {
+      el.addEventListener('click', closePalette);
+    });
+
+    btnPalette.onclick = openPalette;
+    if (window.dsh && window.dsh.onOpenCommandPalette) {
+      window.dsh.onOpenCommandPalette(() => openPalette());
+    }
+
+    // ============================================================
+    // F2 — About modal
+    // ============================================================
+    async function openAbout() {
+      try {
+        const a = await window.dsh.getAbout();
+        $('aboutVersion').textContent  = `${a.productName} v${a.version}`;
+        $('aboutElectron').textContent = a.electron;
+        $('aboutNode').textContent     = a.node;
+        $('aboutChrome').textContent   = a.chrome;
+        $('aboutPlatform').textContent = a.platform;
+        const binEl = $('aboutDshBin');
+        binEl.textContent = a.dshBin + (a.dshBinExists ? '' : '  ❌');
+        binEl.classList.toggle('about__path--bad', !a.dshBinExists);
+        $('aboutDshCwd').textContent = a.dshCwd;
+        const apiEl = $('aboutApiKey');
+        if (a.apiKeySet) {
+          apiEl.innerHTML = `<span class="about__pill about__pill--ok">已设置</span> <code>${escapeHtml(a.apiKeyMasked || '')}</code>`;
+        } else {
+          apiEl.innerHTML = `<span class="about__pill about__pill--warn">未设置</span>`;
+        }
+        $('aboutLinkClient').onclick = (e) => { e.preventDefault(); window.dsh.openExternal(a.clientRepoUrl); };
+        $('aboutLinkDsh').onclick    = (e) => { e.preventDefault(); window.dsh.openExternal(a.repoUrl); };
+        $('aboutLinkLicense').onclick = (e) => { e.preventDefault(); window.dsh.openExternal(a.clientRepoUrl + '/blob/main/LICENSE'); };
+      } catch (e) {
+        showToast(`读取信息失败: ${e.message}`, 3000);
+      }
+      $('aboutModal').hidden = false;
+    }
+    function closeAbout() { $('aboutModal').hidden = true; }
+    btnAbout.onclick = openAbout;
+    if (window.dsh && window.dsh.onOpenAbout) {
+      window.dsh.onOpenAbout(() => openAbout());
+    }
+    document.querySelectorAll('[data-about-close]').forEach(el => {
+      el.addEventListener('click', closeAbout);
+    });
+
+    // ============================================================
+    // F9 — Log viewer
+    // ============================================================
+    const logBody = $('logBody');
+    const logMeta = $('logMeta');
+    const logSearch = $('logSearch');
+
+    async function refreshLogs() {
+      try {
+        const r = await window.dsh.getLogs();
+        logBody.textContent = (r.buffer || []).join('\n') || '(日志为空)';
+        logMeta.textContent = `共 ${r.total} / ${r.size} 行 · 最后刷新 ${new Date().toLocaleTimeString()}`;
+      } catch (e) {
+        logMeta.textContent = `加载失败: ${e.message}`;
+      }
+    }
+    function applyLogFilter() {
+      const q = logSearch.value.toLowerCase();
+      const lines = logBody.textContent.split('\n');
+      if (!q) { logBody.innerHTML = lines.join('\n'); return; }
+      const out = [];
+      lines.forEach((line, i) => {
+        if (line.toLowerCase().includes(q)) {
+          out.push(line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'));
+        }
+      });
+      logBody.innerHTML = out.join('\n');
+    }
+    async function openLogViewer() {
+      $('logViewer').hidden = false;
+      logSearch.value = '';
+      await refreshLogs();
+      setTimeout(() => logSearch.focus(), 30);
+    }
+    function closeLogViewer() { $('logViewer').hidden = true; }
+
+    btnLogs.onclick = () => openLogViewer();
+    if (window.dsh && window.dsh.onOpenLogViewer) {
+      window.dsh.onOpenLogViewer(() => openLogViewer());
+    }
+    document.querySelectorAll('[data-log-close]').forEach(el => {
+      el.addEventListener('click', closeLogViewer);
+    });
+    $('logRefresh').onclick = refreshLogs;
+    $('logClear').onclick = async () => {
+      await window.dsh.clearLogs();
+      await refreshLogs();
+      showToast('日志已清空');
+    };
+    $('logCopy').onclick = () => {
+      const text = logBody.textContent;
+      navigator.clipboard.writeText(text).then(
+        () => showToast(`已复制 ${text.split('\n').length} 行`),
+        () => showToast('复制失败', 2000)
+      );
+    };
+    logSearch.addEventListener('input', applyLogFilter);
+    logSearch.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeLogViewer();
+    });
+    logBody.addEventListener('dblclick', () => {
+      navigator.clipboard.writeText(logBody.textContent).then(() => showToast('已复制全部日志'));
+    });
+
+    // ============================================================
+    // F6 — dsh Path modal
+    // ============================================================
+    async function openPathModal() {
+      try {
+        const s = await window.dsh.getSettings();
+        $('pathBin').value = s.dshBin || '';
+        $('pathCwd').value = s.dshCwd || '';
+      } catch (e) {
+        showToast(`读取设置失败: ${e.message}`, 3000);
+      }
+      $('pathModal').hidden = false;
+    }
+    function closePathModal() { $('pathModal').hidden = true; }
+    btnPath.onclick = openPathModal;
+    document.querySelectorAll('[data-path-close]').forEach(el => {
+      el.addEventListener('click', closePathModal);
+    });
+    $('pathPickBin').onclick = async () => {
+      const r = await window.dsh.pickDshPath();
+      if (r && r.ok) {
+        $('pathBin').value = r.bin;
+        $('pathCwd').value = r.cwd;
+      }
+    };
+    $('pathPickCwd').onclick = async () => {
+      const r = await window.dsh.pickDshCwd();
+      if (r && r.ok) $('pathCwd').value = r.cwd;
+    };
+    $('pathApply').onclick = async () => {
+      const bin = $('pathBin').value.trim();
+      const cwd = $('pathCwd').value.trim();
+      if (!bin || !cwd) {
+        showToast('路径不能为空', 2000);
+        return;
+      }
+      await window.dsh.setDshPath({ bin, cwd });
+      await window.dsh.reloadDsh();
+      closePathModal();
+      showToast('已保存,正在重启 dsh…');
+    };
+
+    // ============================================================
+    // Global keybinds — local fallbacks when the window is focused.
+    // ============================================================
+    document.addEventListener('keydown', (e) => {
+      const inField = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');
+      // Ctrl+K / Ctrl+Shift+P — open command palette
+      if (e.ctrlKey && !e.shiftKey && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        openPalette();
+      } else if (e.ctrlKey && e.shiftKey && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault();
+        openPalette();
+      } else if (e.key === 'Escape') {
+        if (!palette.hidden) { closePalette(); e.preventDefault(); return; }
+        if (!$('aboutModal').hidden) { closeAbout(); e.preventDefault(); return; }
+        if (!$('logViewer').hidden) { closeLogViewer(); e.preventDefault(); return; }
+        if (!$('pathModal').hidden) { closePathModal(); e.preventDefault(); return; }
+      } else if (e.ctrlKey && !e.shiftKey && (e.key === 'r' || e.key === 'R') && !inField) {
+        e.preventDefault();
+        window.dsh.reload();
+      } else if (e.ctrlKey && e.shiftKey && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault();
+        if ($('logViewer').hidden) openLogViewer();
+        else { closeLogViewer(); }
+      }
+    });
+  </script>
+</body>
+</html>
