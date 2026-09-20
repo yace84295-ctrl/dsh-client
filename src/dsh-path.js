@@ -8,8 +8,61 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const DEFAULT_DSH_BIN = 'C:/Users/111/dsh-scratch/node_modules/.bin/dsh.cmd';
-const DEFAULT_DSH_CWD = 'C:/Users/111/dsh-scratch';
+const DSH_SHIM_NAMES = process.platform === 'win32' ? ['dsh.cmd', 'dsh.exe', 'dsh.bat'] : ['dsh'];
+
+function existsSyncSafe(p) {
+  try {
+    return !!p && fs.existsSync(p);
+  } catch (_err) {
+    return false;
+  }
+}
+
+/**
+ * Where a dsh shim might live, highest priority first:
+ *   1. npm's global shim directory (%APPDATA%\npm on Windows)
+ *   2. every directory on PATH
+ *   3. the dev-scratch install documented in docs/development.md (~/dsh-scratch)
+ * Every input is overridable so this stays a pure, testable function.
+ */
+function dshBinCandidates({
+  home = os.homedir(),
+  appData = process.env.APPDATA || path.join(os.homedir(), 'AppData/Roaming'),
+  pathEnv = process.env.PATH,
+} = {}) {
+  const dirs = [];
+  if (appData) dirs.push(path.join(appData, 'npm'));
+  for (const dir of String(pathEnv || '').split(path.delimiter)) {
+    if (dir) dirs.push(dir);
+  }
+  if (home) dirs.push(path.join(home, 'dsh-scratch', 'node_modules', '.bin'));
+  const out = [];
+  for (const dir of dirs) {
+    for (const name of DSH_SHIM_NAMES) out.push(path.join(dir, name));
+  }
+  return out;
+}
+
+/** First dsh shim that exists on disk, or '' when the user has to point us at one. */
+function detectDshBin(opts) {
+  return dshBinCandidates(opts).find(existsSyncSafe) || '';
+}
+
+/** Workspace for dsh: the project owning node_modules/.bin, else the home directory. */
+function dshCwdFor(bin, { home = os.homedir() } = {}) {
+  if (bin) {
+    const parts = path.normalize(bin).split(path.sep);
+    const i = parts.lastIndexOf('node_modules');
+    if (i > 0 && parts[i + 1] === '.bin') {
+      const project = parts.slice(0, i).join(path.sep);
+      if (existsSyncSafe(project)) return project;
+    }
+  }
+  return existsSyncSafe(home) ? home : '';
+}
+
+const DEFAULT_DSH_BIN = detectDshBin();
+const DEFAULT_DSH_CWD = dshCwdFor(DEFAULT_DSH_BIN);
 
 /** Candidate env files, highest priority first. */
 function candidateEnvFiles() {
@@ -101,5 +154,8 @@ module.exports = {
   maskApiKey,
   defaultEnvFile,
   candidateEnvFiles,
+  dshBinCandidates,
+  detectDshBin,
+  dshCwdFor,
   resolveEnvFile,
 };

@@ -16,6 +16,7 @@
 ### 修改 (Changed)
 
 -`npm run syntax-check` 从 POSIX 的 `for f in src/*.js` 循环改为跨平台脚本 `scripts/syntax-check.mjs`,修复 Windows(npm 默认 cmd.exe)下必然失败的问题
+- dsh 路径不再写死本机目录:默认值改为自动探测(npm 全局 shim → PATH → `~/dsh-scratch`),探测不到时提示去设置里指定;README 配置示例同步去掉个人路径
 - API key 的 env 文件位置改为 dsh-client 自己的配置目录 `%APPDATA%\dsh-client\.env`(可用 `DSH_ENV_FILE` 覆盖),不再指引用户写进 Hermes 的 `.env`;旧路径仍作为回退读取
 - 仓库链接占位符全部替换为真实路径 `yace84295-ctrl/dsh-client`;移除 README / CHANGELOG 顶部的发布前占位符警告区块与推广文里的替换提示
 

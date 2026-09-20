@@ -69,9 +69,11 @@ function startDsh() {
   }
 
   if (!pathsLookValid({ bin, cwd })) {
-    const msg = !fs.existsSync(bin)
-      ? `dsh 二进制不存在: ${bin}\n请在设置中重新选择路径,或安装 dsh: npm i -g deepseek-harness`
-      : `dsh 工作目录不存在: ${cwd}`;
+    const msg = !bin
+      ? '未找到 dsh:请在设置中指定 dsh.cmd 路径,或安装 dsh: npm i -g deepseek-harness'
+      : !fs.existsSync(bin)
+        ? `dsh 二进制不存在: ${bin}\n请在设置中重新选择路径,或安装 dsh: npm i -g deepseek-harness`
+        : `dsh 工作目录不存在: ${cwd}`;
     console.error('[dsh-client] ' + msg);
     sendToSplash({ phase: 'error', message: msg });
     return false;

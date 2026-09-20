@@ -14,6 +14,9 @@ import {
   defaultEnvFile,
   candidateEnvFiles,
   resolveEnvFile,
+  dshBinCandidates,
+  detectDshBin,
+  dshCwdFor,
   DEFAULT_DSH_BIN,
   DEFAULT_DSH_CWD,
 } from '../../src/dsh-path.js';
@@ -223,5 +226,70 @@ describe('env file resolution', () => {
     write(process.env.DSH_ENV_FILE, 'DEEPSEEK_API_KEY=sk-explicit\n');
     expect(resolveEnvFile()).toBe(process.env.DSH_ENV_FILE);
     expect(readApiKey()).toBe('sk-explicit');
+  });
+});
+
+describe('dsh binary discovery', () => {
+  let root;
+
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-detect-'));
+  });
+  afterEach(() => {
+    try { fs.rmSync(root, { recursive: true, force: true }); } catch (_) {}
+  });
+
+  const shim = (dir) => {
+    const f = path.join(dir, 'dsh.cmd');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(f, '@echo off');
+    return f;
+  };
+
+  it("prefers npm's global shim directory over PATH", () => {
+    const appData = path.join(root, 'roaming');
+    const want = shim(path.join(appData, 'npm'));
+    shim(path.join(root, 'onpath'));
+    expect(detectDshBin({ home: root, appData, pathEnv: path.join(root, 'onpath') })).toBe(want);
+  });
+
+  it('falls back to PATH before the dsh-scratch convention', () => {
+    const onPath = shim(path.join(root, 'onpath'));
+    shim(path.join(root, 'dsh-scratch', 'node_modules', '.bin'));
+    expect(detectDshBin({ home: root, appData: path.join(root, 'none'), pathEnv: path.join(root, 'onpath') }))
+      .toBe(onPath);
+  });
+
+  it('uses the dsh-scratch install when PATH has nothing', () => {
+    const scratch = shim(path.join(root, 'dsh-scratch', 'node_modules', '.bin'));
+    expect(detectDshBin({ home: root, appData: path.join(root, 'none'), pathEnv: path.join(root, 'empty') }))
+      .toBe(scratch);
+  });
+
+  it('returns "" when nothing is installed, so the app asks the user instead of guessing', () => {
+    expect(detectDshBin({ home: root, appData: path.join(root, 'none'), pathEnv: path.join(root, 'empty') }))
+      .toBe('');
+  });
+
+  it('uses the project owning node_modules/.bin as cwd, else the home directory', () => {
+    const bin = shim(path.join(root, 'proj', 'node_modules', '.bin'));
+    expect(dshCwdFor(bin, { home: root })).toBe(path.join(root, 'proj'));
+    expect(dshCwdFor('', { home: root })).toBe(root);
+  });
+
+  it('derives the built-in default by detection instead of baking in a path', () => {
+    // the source itself must not contain a machine-specific user profile
+    const src = fs.readFileSync(new URL('../../src/dsh-path.js', import.meta.url), 'utf8');
+    expect(src).not.toMatch(/Users[\\/]\\d+/);
+    // whatever the default ends up being here, it came from the candidate list
+    if (DEFAULT_DSH_BIN) expect(dshBinCandidates()).toContain(DEFAULT_DSH_BIN);
+    if (DEFAULT_DSH_CWD) expect(fs.existsSync(DEFAULT_DSH_CWD)).toBe(true);
+  });
+
+  it('still lists candidates for a machine where nothing exists', () => {
+    const c = dshBinCandidates({ home: root, appData: path.join(root, 'roaming'), pathEnv: path.join(root, 'onpath') });
+    expect(c[0]).toBe(path.join(root, 'roaming', 'npm', 'dsh.cmd'));
+    expect(c).toContain(path.join(root, 'onpath', 'dsh.cmd'));
+    expect(c).toContain(path.join(root, 'dsh-scratch', 'node_modules', '.bin', 'dsh.cmd'));
   });
 });

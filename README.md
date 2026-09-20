@@ -94,8 +94,8 @@ npm start
 ```json
 {
   "theme": "dark",
-  "dshBin": "C:/Users/111/dsh-scratch/node_modules/.bin/dsh.cmd",
-  "dshCwd": "C:/Users/111/dsh-scratch",
+  "dshBin": "C:/path/to/node_modules/.bin/dsh.cmd",
+  "dshCwd": "C:/path/to/dsh-workspace",
   "windowBounds": { "x": 200, "y": 100, "width": 1400, "height": 900 },
   "windowMaximized": false
 }
@@ -112,7 +112,7 @@ npm start
 
 ### ❓ 故障排查
 
-- **"找不到 dsh: C:/Users/..."** → 启动时会自动弹窗让你手动选 `dsh.cmd` 路径
+- **「未找到 dsh / dsh 二进制不存在」** → 启动时会自动弹窗让你手动选 `dsh.cmd` 路径,或 `npm i -g deepseek-harness` 后重启
 - **端口 3080 已被占用** → `taskkill /f /im node.exe /fi "WINDOWTITLE eq dsh*"`,然后重启
 - **DEEPSEEK_API_KEY 未找到** → 检查 `%APPDATA%\dsh-client\.env` 是否存在并含 `DEEPSEEK_API_KEY=...`(旧版路径 `%LOCALAPPDATA%\hermes\.env` 仍作为回退读取)
 - **npm install 卡住** → 设 `ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/` 后重试
@@ -195,8 +195,8 @@ Reads `userData/dsh-client-settings.json` on launch (Windows: `%APPDATA%\dsh-cli
 ```json
 {
   "theme": "dark",
-  "dshBin": "C:/Users/111/dsh-scratch/node_modules/.bin/dsh.cmd",
-  "dshCwd": "C:/Users/111/dsh-scratch",
+  "dshBin": "C:/path/to/node_modules/.bin/dsh.cmd",
+  "dshCwd": "C:/path/to/dsh-workspace",
   "windowBounds": { "x": 200, "y": 100, "width": 1400, "height": 900 },
   "windowMaximized": false
 }
