@@ -354,6 +354,12 @@ body {
 /* ============================================================
    Generic modal (about / logs / path)
    ============================================================ */
+.modal[hidden],
+.palette[hidden],
+.toast[hidden] {
+  display: none !important;
+}
+
 .modal {
   position: fixed; inset: 0;
   z-index: 200;

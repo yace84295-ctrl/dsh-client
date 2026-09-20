@@ -1,6 +1,6 @@
 {
   "name": "dsh-client",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Electron desktop client for DeepSeek Harness (dsh) — single-file Windows portable wrapper with command palette, splash screen, log viewer, and persistent window memory.",
   "main": "main.js",
   "author": {
@@ -36,7 +36,11 @@
     "dev": "electron .",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "node --check main.js && node --check preload.js && echo \"syntax OK\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "syntax-check": "node --check main.js && node --check preload.js && for f in src/*.js; do node --check \"$f\" || exit 1; done && echo \"syntax OK\"",
     "build": "electron-builder --win",
     "dist": "electron-builder --win",
     "build:portable": "electron-builder --win portable",
@@ -44,10 +48,12 @@
     "pack": "electron-builder --dir"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^5.0.0",
     "electron": "^32.2.0",
     "electron-builder": "^25.1.8",
     "eslint": "^9.13.0",
-    "prettier": "^3.3.3"
+    "prettier": "^3.3.3",
+    "vitest": "^5.0.0"
   },
   "build": {
     "appId": "com.deepseek.dsh-client",
@@ -62,6 +68,7 @@
       "index.html",
       "styles.css",
       "splash.html",
+      "src/**/*",
       "package.json",
       "icon.ico",
       "icon.png",

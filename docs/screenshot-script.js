@@ -1,43 +1,46 @@
 // docs/screenshot-script.js
-// Generate README hero screenshots without needing a live dsh backend.
-//
-// Usage:  node docs/screenshot-script.js
-// Output: docs/screenshots/screenshot-light.png
-//         docs/screenshots/screenshot-dark.png
+// Spawn one Electron process per screenshot so each capture starts clean.
+// Usage: node docs/screenshot-script.js [light|dark|palette|about]
 
 'use strict';
 
 const path = require('path');
 const fs = require('fs');
-const { app, BrowserWindow, nativeTheme } = require('electron');
+const { spawn } = require('child_process');
 
-const OUT_DIR = path.join(__dirname, 'screenshots');
+const THIS_DIR = __dirname;
+const SHOT = process.argv[2] || 'all';
 
-async function captureTheme(theme) {
-  nativeTheme.themeSource = theme;
-  const win = new BrowserWindow({
-    width: 1600,
-    height: 1000,
-    show: false,
-    webPreferences: {
-      preload: path.join(__dirname, '..', 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
+const VARIANTS = [
+  { name: 'screenshot-light', theme: 'light',   openPalette: false, openAbout: false },
+  { name: 'screenshot-dark',  theme: 'dark',    openPalette: false, openAbout: false },
+  // Use light theme for the command palette screenshot so the white modal panel
+  // is visually distinct from the page background.
+  { name: 'command-palette',  theme: 'light',   openPalette: true,  openAbout: false },
+  // Use light theme for the about dialog for the same reason.
+  { name: 'about',            theme: 'light',   openPalette: false, openAbout: true  },
+];
+
+function runOne(variant) {
+  return new Promise((resolve, reject) => {
+    const args = [
+      path.join(THIS_DIR, '_capture-one.js'),
+      JSON.stringify(variant),
+    ];
+    const proc = spawn(process.execPath, [path.join(THIS_DIR, '..', 'node_modules', 'electron', 'cli.js'), ...args], {
+      stdio: 'inherit',
+      cwd: THIS_DIR,
+    });
+    proc.on('exit', (code) => code === 0 ? resolve() : reject(new Error(`exit ${code}`)));
   });
-  await win.loadFile(path.join(__dirname, '..', 'index.html'));
-  // Wait for layout to settle
-  await new Promise(r => setTimeout(r, 600));
-  const image = await win.webContents.capturePage();
-  const outPath = path.join(OUT_DIR, `screenshot-${theme}.png`);
-  fs.writeFileSync(outPath, image.toPNG());
-  console.log(`✓ wrote ${outPath}`);
-  win.close();
 }
 
-app.whenReady().then(async () => {
-  fs.mkdirSync(OUT_DIR, { recursive: true });
-  await captureTheme('light');
-  await captureTheme('dark');
-  app.quit();
-});
+(async () => {
+  fs.mkdirSync(path.join(THIS_DIR, 'screenshots'), { recursive: true });
+  const targets = SHOT === 'all' ? VARIANTS : VARIANTS.filter((v) => v.name === SHOT || v.name.includes(SHOT));
+  for (const v of targets) {
+    console.log(`\n=== Capturing ${v.name} ===`);
+    await runOne(v);
+  }
+  console.log('\nAll done.');
+})();

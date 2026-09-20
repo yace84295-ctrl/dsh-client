@@ -23,6 +23,7 @@ module.exports = [
         setInterval: 'readonly',
         clearInterval: 'readonly',
         global: 'readonly',
+        exports: 'readonly',
         // Electron globals used in main / preload
         app: 'readonly',
         BrowserWindow: 'readonly',
@@ -41,14 +42,12 @@ module.exports = [
         window: 'readonly',
         document: 'readonly',
         navigator: 'readonly',
-        setTimeout: 'readonly',
-        clearTimeout: 'readonly',
         fetch: 'readonly',
         URL: 'readonly',
       },
     },
     rules: {
-      'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
       'no-empty': ['error', { allowEmptyCatch: true }],
       'no-console': 'off',
       'prefer-const': 'warn',
@@ -57,7 +56,7 @@ module.exports = [
     },
   },
   {
-    // Test files & generated assets get a free pass
-    ignores: ['node_modules/**', 'dist/**', '*.bundle', 'docs/**'],
+    // Test files, generated assets, and bundled output get a free pass
+    ignores: ['node_modules/**', 'dist/**', '*.bundle', 'docs/**', 'tests/**', 'coverage/**', '**/*.mjs'],
   },
 ];

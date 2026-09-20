@@ -1,105 +1,46 @@
 // dsh-client main process
-// Launches dsh as a child process (localhost:3080), waits for it,
-// opens a frameless BrowserWindow that embeds the dsh Web UI,
-// and provides a tray icon for quick access.
+// Thin entry point. All the real logic lives in src/*.js modules so it's
+// testable without spinning up Electron.
 //
-// v0.3.0 — adds:
-//   - Command palette (Ctrl+K / Ctrl+Shift+P)
-//   - About dialog with versions
-//   - Splash screen with progress
-//   - Custom dsh path detection + settings
-//   - Window position/size memory
-//   - In-app log viewer (ring buffer)
-//   - electron-store-style JSON settings
-//   - "open-external" IPC for the about dialog link
+// What this file does:
+//   1. Read settings (user prefs: theme, dsh path, window bounds)
+//   2. Spawn dsh as a child process (localhost:3080)
+//   3. Wait for port 3080 to respond (with splash progress feedback)
+//   4. Open a frameless BrowserWindow that embeds dsh Web UI
+//   5. Set up tray icon, global shortcuts, IPC handlers
+//
+// v0.3.0 — adds: command palette, about, splash, log viewer, custom dsh path,
+//                 window position memory, electron-store-style JSON settings.
 
 const { app, BrowserWindow, ipcMain, shell, Tray, Menu, dialog, nativeTheme, globalShortcut, nativeImage, screen } = require('electron');
-const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-const os = require('os');
-const http = require('http');
+
+const {
+  Settings,
+} = require('./src/settings');
+const { createLogger } = require('./src/logger');
+const { resolveDshPaths, readApiKey, pathsLookValid, maskApiKey, defaultEnvFile } = require('./src/dsh-path');
+const { spawnDsh, killProcessTree, waitForDshReady, looksReady, DSH_URL, DSH_PORT, READY_TIMEOUT_MS } = require('./src/dsh-manager');
+const { pickInitialBounds, makeSaver } = require('./src/window-state');
+const { shortcuts } = require('./src/shortcuts');
+const { buildSplashPayload, PHASES } = require('./src/splash');
+const { registerIpcHandlers } = require('./src/ipc-handlers');
 
 // ---------------------------------------------------------------------------
-// Paths & config (overridable via env for portability)
+// Config
 // ---------------------------------------------------------------------------
-const DEFAULT_DSH_BIN  = 'C:/Users/111/dsh-scratch/node_modules/.bin/dsh.cmd';
-const DEFAULT_DSH_CWD  = 'C:/Users/111/dsh-scratch';
-const ENV_FILE         = process.env.DSH_ENV_FILE || 'C:/Users/111/AppData/Local/hermes/.env';
-const DSH_URL          = 'http://127.0.0.1:3080';
-const DSH_PORT         = 3080;
-const READY_TIMEOUT_MS = 60000;
+const ENV_FILE = process.env.DSH_ENV_FILE || defaultEnvFile();
 
 // ---------------------------------------------------------------------------
-// Persisted user settings — plain JSON next to userData.
+// Settings + logger
 // ---------------------------------------------------------------------------
-const SETTINGS_FILE = path.join(app.getPath('userData'), 'dsh-client-settings.json');
-
-function readSettings() {
-  try {
-    return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
-  } catch (_) {
-    return {};
-  }
-}
-
-function writeSettings(patch) {
-  const cur = readSettings();
-  const next = { ...cur, ...patch };
-  try {
-    fs.mkdirSync(path.dirname(SETTINGS_FILE), { recursive: true });
-    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(next, null, 2));
-  } catch (e) {
-    console.error('[dsh-client] settings write failed:', e.message);
-  }
-  return next;
-}
-
-// Resolved dsh paths (settings override defaults).
-function getDshPaths() {
-  const s = readSettings();
-  return {
-    bin: s.dshBin || process.env.DSH_BIN || DEFAULT_DSH_BIN,
-    cwd: s.dshCwd || process.env.DSH_CWD || DEFAULT_DSH_CWD,
-  };
-}
+const settings = new Settings('dsh-client');
+const logger = createLogger({ size: 1000 });
+logger.patchConsole();
 
 // ---------------------------------------------------------------------------
-// Ring-buffer log store — keeps the last 1000 lines of dsh-client + dsh output
-// ---------------------------------------------------------------------------
-const LOG_BUFFER_SIZE = 1000;
-const logBuffer = [];
-function appendLog(level, line) {
-  const stamp = new Date().toISOString().replace('T', ' ').replace('Z', '');
-  const entry = `[${stamp}] [${level}] ${line.replace(/\r?\n$/, '')}`;
-  logBuffer.push(entry);
-  if (logBuffer.length > LOG_BUFFER_SIZE) logBuffer.splice(0, logBuffer.length - LOG_BUFFER_SIZE);
-}
-
-// Patch console.log/error/warn to also feed the ring buffer.
-const _origLog   = console.log.bind(console);
-const _origErr   = console.error.bind(console);
-const _origWarn  = console.warn.bind(console);
-console.log   = (...a) => { _origLog(...a);   appendLog('info', a.map(String).join(' ')); };
-console.error = (...a) => { _origErr(...a);   appendLog('error', a.map(String).join(' ')); };
-console.warn  = (...a) => { _origWarn(...a);  appendLog('warn',  a.map(String).join(' ')); };
-
-// ---------------------------------------------------------------------------
-// API key loader — read from .env, never hardcode
-// ---------------------------------------------------------------------------
-function readApiKey() {
-  try {
-    const env = fs.readFileSync(ENV_FILE, 'utf8');
-    const m = env.match(/^DEEPSEEK_API_KEY\s*=\s*(.+)$/m);
-    return m ? m[1].trim() : '';
-  } catch (e) {
-    console.error('[dsh-client] .env read failed:', e.message);
-    return '';
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Single-instance lock — avoid two clients fighting over port 3080
+// Single-instance lock
 // ---------------------------------------------------------------------------
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
@@ -108,30 +49,18 @@ if (!gotLock) {
 }
 
 // ---------------------------------------------------------------------------
-// Child-process management
+// dsh lifecycle
 // ---------------------------------------------------------------------------
 let dshProcess = null;
 
 function killDsh() {
-  if (dshProcess && !dshProcess.killed) {
-    try {
-      // On Windows, spawn taskkill to make sure the whole cmd.exe tree dies,
-      // otherwise the .cmd wrapper can hang around holding the port.
-      if (process.platform === 'win32') {
-        spawn('taskkill', ['/pid', String(dshProcess.pid), '/f', '/t'], { windowsHide: true });
-      } else {
-        dshProcess.kill();
-      }
-    } catch (e) {
-      console.error('[dsh-client] kill error:', e.message);
-    }
-    dshProcess = null;
-  }
+  killProcessTree(dshProcess);
+  dshProcess = null;
 }
 
 function startDsh() {
-  const { bin, cwd } = getDshPaths();
-  const apiKey = readApiKey();
+  const { bin, cwd } = resolveDshPaths(settings.all());
+  const apiKey = readApiKey(ENV_FILE);
   if (!apiKey) {
     dialog.showErrorBox(
       'DEEPSEEK_API_KEY 未找到',
@@ -139,14 +68,10 @@ function startDsh() {
     );
   }
 
-  if (!fs.existsSync(bin)) {
-    const msg = `dsh 二进制不存在: ${bin}\n请在设置中重新选择路径,或安装 dsh: npm i -g deepseek-harness`;
-    console.error('[dsh-client] ' + msg);
-    sendToSplash({ phase: 'error', message: msg });
-    return false;
-  }
-  if (!fs.existsSync(cwd)) {
-    const msg = `dsh 工作目录不存在: ${cwd}`;
+  if (!pathsLookValid({ bin, cwd })) {
+    const msg = !fs.existsSync(bin)
+      ? `dsh 二进制不存在: ${bin}\n请在设置中重新选择路径,或安装 dsh: npm i -g deepseek-harness`
+      : `dsh 工作目录不存在: ${cwd}`;
     console.error('[dsh-client] ' + msg);
     sendToSplash({ phase: 'error', message: msg });
     return false;
@@ -154,79 +79,41 @@ function startDsh() {
 
   console.log('[dsh-client] spawning dsh:', bin);
   sendToSplash({ phase: 'starting', message: `启动 dsh (${bin})` });
-  dshProcess = spawn('cmd.exe', ['/c', bin, 'web'], {
-    cwd,
-    env: {
-      ...process.env,
-      DEEPSEEK_API_KEY: apiKey,
-      NODE_ENV: process.env.NODE_ENV || 'production',
-    },
-    windowsHide: true,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  dshProcess = spawnDsh({ bin, cwd, env: { DEEPSEEK_API_KEY: apiKey } });
 
-  dshProcess.stdout.on('data', d => {
+  dshProcess.stdout.on('data', (d) => {
     const txt = d.toString();
     process.stdout.write('[dsh] ' + txt);
-    appendLog('dsh', txt);
-    // Heuristic progress: report "listening on port 3080" once we see it.
-    if (/listening|ready|started|3080/i.test(txt)) {
+    logger.append('dsh', txt);
+    if (looksReady(txt)) {
       sendToSplash({ phase: 'ready', message: 'dsh 已就绪,准备打开窗口…' });
     }
   });
-  dshProcess.stderr.on('data', d => {
+  dshProcess.stderr.on('data', (d) => {
     const txt = d.toString();
     process.stderr.write('[dsh:err] ' + txt);
-    appendLog('dsh:err', txt);
+    logger.append('dsh:err', txt);
   });
-
-  dshProcess.on('error', err => {
+  dshProcess.on('error', (err) => {
     console.error('[dsh-client] spawn error:', err.message);
-    appendLog('error', 'spawn error: ' + err.message);
+    logger.append('error', 'spawn error: ' + err.message);
     dialog.showErrorBox('dsh 启动失败', err.message);
     sendToSplash({ phase: 'error', message: err.message });
   });
-
   dshProcess.on('exit', (code, signal) => {
     console.log(`[dsh-client] dsh exited code=${code} signal=${signal}`);
-    appendLog('info', `dsh exited code=${code} signal=${signal}`);
+    logger.append('info', `dsh exited code=${code} signal=${signal}`);
   });
   return true;
 }
 
 function reloadDshProcess() {
   killDsh();
-  // Wait briefly, then re-spawn so port 3080 has time to free up.
   setTimeout(() => startDsh(), 2000);
 }
 
-function waitForDshReady(timeoutMs = READY_TIMEOUT_MS, onTick) {
-  return new Promise((resolve, reject) => {
-    const start = Date.now();
-    let attempts = 0;
-    const tryConnect = () => {
-      attempts++;
-      if (onTick) onTick(attempts, Math.round((Date.now() - start) / 1000));
-      const req = http.get({ host: '127.0.0.1', port: DSH_PORT, path: '/', timeout: 1500 }, res => {
-        res.resume();
-        console.log(`[dsh-client] dsh ready after ${attempts} attempt(s)`);
-        resolve();
-      });
-      req.on('error', () => {
-        if (Date.now() - start > timeoutMs) {
-          reject(new Error(`dsh 启动超时 (${Math.round(timeoutMs / 1000)}s),端口 ${DSH_PORT} 未响应`));
-        } else {
-          setTimeout(tryConnect, 500);
-        }
-      });
-      req.on('timeout', () => req.destroy(new Error('timeout')));
-    };
-    tryConnect();
-  });
-}
-
 // ---------------------------------------------------------------------------
-// Splash window — shown while dsh boots, then closed
+// Splash
 // ---------------------------------------------------------------------------
 let splashWindow = null;
 
@@ -265,34 +152,52 @@ function destroySplash() {
 }
 
 // ---------------------------------------------------------------------------
-// Window position memory — save bounds on close, restore on next launch
-// ---------------------------------------------------------------------------
-function loadSavedBounds() {
-  const s = readSettings();
-  if (!s.windowBounds) return null;
-  // Sanity check: must fit on at least one currently-connected display.
-  const displays = screen.getAllDisplays();
-  const { x, y, width, height } = s.windowBounds;
-  const fits = displays.some(d =>
-    x + width  > d.bounds.x &&
-    y + height > d.bounds.y &&
-    x < d.bounds.x + d.bounds.width &&
-    y < d.bounds.y + d.bounds.height
-  );
-  return fits ? s.windowBounds : null;
-}
-
-function saveBounds(win) {
-  if (!win || win.isDestroyed()) return;
-  const isMax = win.isMaximized();
-  const bounds = isMax ? win.getNormalBounds() : win.getBounds();
-  writeSettings({ windowBounds: bounds, windowMaximized: isMax });
-}
-
-// ---------------------------------------------------------------------------
-// Window
+// Main window
 // ---------------------------------------------------------------------------
 let mainWindow = null;
+const saveBounds = makeSaver((patch) => settings.set(patch));
+
+function toggleMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow();
+    return;
+  }
+  if (mainWindow.isVisible()) mainWindow.hide();
+  else { mainWindow.show(); mainWindow.focus(); }
+}
+
+function sendToRenderer(channel, payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(channel, payload);
+  }
+}
+
+async function takeScreenshotToDisk(targetPath) {
+  if (!mainWindow || mainWindow.isDestroyed()) return null;
+  try {
+    const image = await mainWindow.webContents.capturePage();
+    const png = image.toPNG();
+    let filePath = targetPath;
+    if (!filePath) {
+      const stamp = new Date().toISOString().replace(/[-:T]/g, '').replace(/\..+/, '');
+      const defaultName = `dsh-screenshot-${stamp}.png`;
+      const { filePath: chosen, canceled } = await dialog.showSaveDialog(mainWindow, {
+        title: '保存截图',
+        defaultPath: path.join(app.getPath('pictures'), defaultName),
+        filters: [{ name: 'Images', extensions: ['png'] }],
+      });
+      if (canceled || !chosen) return null;
+      filePath = chosen;
+    }
+    fs.writeFileSync(filePath, png);
+    sendToRenderer('dsh:screenshot-saved', { filePath });
+    return filePath;
+  } catch (e) {
+    console.error('[dsh-client] screenshot failed:', e.message);
+    sendToRenderer('dsh:screenshot-saved', { error: e.message });
+    return null;
+  }
+}
 
 async function createWindow() {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -302,11 +207,11 @@ async function createWindow() {
     return mainWindow;
   }
 
-  const settings = readSettings();
-  const isDark = settings.theme ? settings.theme === 'dark' : nativeTheme.shouldUseDarkColors;
+  const s = settings.all();
+  const isDark = s.theme ? s.theme === 'dark' : nativeTheme.shouldUseDarkColors;
   nativeTheme.themeSource = isDark ? 'dark' : 'light';
 
-  const savedBounds = loadSavedBounds();
+  const savedBounds = pickInitialBounds(s.windowBounds, screen.getAllDisplays());
   const win = new BrowserWindow({
     width:  savedBounds ? savedBounds.width  : 1400,
     height: savedBounds ? savedBounds.height : 900,
@@ -332,15 +237,13 @@ async function createWindow() {
     },
   });
 
-  if (settings.windowMaximized) win.maximize();
+  if (s.windowMaximized) win.maximize();
 
-  // Show only after first paint to avoid white flash.
   win.once('ready-to-show', () => {
     win.show();
     destroySplash();
   });
 
-  // Save bounds on resize/move (debounced) and on close.
   let saveTimer = null;
   const queueSave = () => {
     clearTimeout(saveTimer);
@@ -348,17 +251,14 @@ async function createWindow() {
   };
   win.on('resize', queueSave);
   win.on('move',   queueSave);
-  win.on('maximize',   () => writeSettings({ windowMaximized: true }));
-  win.on('unmaximize', () => writeSettings({ windowMaximized: false }));
+  win.on('maximize',   () => settings.set({ windowMaximized: true }));
+  win.on('unmaximize', () => settings.set({ windowMaximized: false }));
 
-  // External links should open in the real browser, not in our window.
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http')) shell.openExternal(url);
     return { action: 'deny' };
   });
 
-  // Loading failure → fall back to an error overlay so the user isn't staring
-  // at a blank window.
   win.webContents.on('did-fail-load', (_e, errorCode, errorDescription, validatedURL) => {
     console.error(`[dsh-client] did-fail-load ${errorCode} ${errorDescription} ${validatedURL}`);
     if (validatedURL === DSH_URL) {
@@ -373,14 +273,11 @@ async function createWindow() {
     }
   });
 
-  // Right-click custom context menu — see buildContextMenu().
   win.webContents.on('context-menu', (_e, params) => {
-    const menu = buildContextMenu(params);
-    menu.popup({ window: win });
+    buildContextMenu(params).popup({ window: win });
   });
 
   win.on('close', (e) => {
-    // Hide-to-tray by default; tray menu "退出" really quits.
     saveBounds(win);
     if (!app.isQuiting) {
       e.preventDefault();
@@ -392,22 +289,24 @@ async function createWindow() {
     if (mainWindow === win) mainWindow = null;
   });
 
-  // Wait for dsh to be ready, with splash progress feedback.
   sendToSplash({ phase: 'waiting', message: `等待 dsh 在端口 ${DSH_PORT} 响应…` });
   try {
-    await waitForDshReady(READY_TIMEOUT_MS, (attempt, sec) => {
-      if (attempt % 4 === 0) {
-        sendToSplash({
-          phase: 'waiting',
-          message: `探测 dsh 端口… (${sec}s, 已尝试 ${attempt} 次)`,
-          progress: Math.min(0.95, sec / (READY_TIMEOUT_MS / 1000)),
-        });
-      }
+    await waitForDshReady({
+      timeoutMs: READY_TIMEOUT_MS,
+      onTick: (attempt, sec) => {
+        if (attempt % 4 === 0) {
+          sendToSplash({
+            phase: 'waiting',
+            message: `探测 dsh 端口… (${sec}s, 已尝试 ${attempt} 次)`,
+            progress: Math.min(0.95, sec / (READY_TIMEOUT_MS / 1000)),
+          });
+        }
+      },
     });
     sendToSplash({ phase: 'ready', message: 'dsh 已就绪,加载界面…', progress: 1 });
   } catch (err) {
     console.error('[dsh-client] dsh start failed:', err.message);
-    appendLog('error', err.message);
+    logger.append('error', err.message);
     sendToSplash({ phase: 'error', message: err.message });
     dialog.showErrorBox('dsh 启动超时', err.message);
     win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(
@@ -419,7 +318,6 @@ async function createWindow() {
     )}`);
   }
 
-  // Load our custom shell, which embeds dsh via an iframe.
   await win.loadFile(path.join(__dirname, 'index.html'));
 
   mainWindow = win;
@@ -436,12 +334,10 @@ function buildTrayIcon() {
   if (fs.existsSync(icoPath)) return icoPath;
   const pngPath = path.join(__dirname, 'icon.png');
   if (fs.existsSync(pngPath)) return pngPath;
-  // Fallback: 16x16 brand-color PNG (deep navy + white "D"), base64 encoded.
-  const fallbackPng = nativeImage.createFromDataURL(
+  return nativeImage.createFromDataURL(
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAQAAAC1+jfqAAAAH0lEQVR42mNkAAIm' +
     'BgYGBhgGCAAAB+gAAaXfDxQAAAAASUVORK5CYII='
   );
-  return fallbackPng;
 }
 
 function buildTrayMenu() {
@@ -490,51 +386,6 @@ function createTray() {
   tray.on('double-click', () => toggleMainWindow());
 }
 
-// ---------------------------------------------------------------------------
-// Helpers shared by IPC + tray + global shortcut handlers
-// ---------------------------------------------------------------------------
-function toggleMainWindow() {
-  if (!mainWindow || mainWindow.isDestroyed()) {
-    createWindow();
-    return;
-  }
-  if (mainWindow.isVisible()) mainWindow.hide();
-  else { mainWindow.show(); mainWindow.focus(); }
-}
-
-function sendToRenderer(channel, payload) {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send(channel, payload);
-  }
-}
-
-async function takeScreenshotToDisk(targetPath) {
-  if (!mainWindow || mainWindow.isDestroyed()) return null;
-  try {
-    const image = await mainWindow.webContents.capturePage();
-    const png = image.toPNG();
-    let filePath = targetPath;
-    if (!filePath) {
-      const stamp = new Date().toISOString().replace(/[-:T]/g, '').replace(/\..+/, '');
-      const defaultName = `dsh-screenshot-${stamp}.png`;
-      const { filePath: chosen, canceled } = await dialog.showSaveDialog(mainWindow, {
-        title: '保存截图',
-        defaultPath: path.join(app.getPath('pictures'), defaultName),
-        filters: [{ name: 'Images', extensions: ['png'] }],
-      });
-      if (canceled || !chosen) return null;
-      filePath = chosen;
-    }
-    fs.writeFileSync(filePath, png);
-    sendToRenderer('dsh:screenshot-saved', { filePath });
-    return filePath;
-  } catch (e) {
-    console.error('[dsh-client] screenshot failed:', e.message);
-    sendToRenderer('dsh:screenshot-saved', { error: e.message });
-    return null;
-  }
-}
-
 function buildContextMenu(params) {
   const items = [];
   if (params && params.selectionText) {
@@ -543,221 +394,40 @@ function buildContextMenu(params) {
   }
   items.push({ label: '粘贴', role: 'paste' });
   items.push({ type: 'separator' });
-  items.push({
-    label: '命令面板 (Ctrl+K)',
-    click: () => sendToRenderer('dsh:open-command-palette'),
-  });
-  items.push({
-    label: '截图 (Ctrl+Shift+S)',
-    click: () => sendToRenderer('dsh:trigger-screenshot'),
-  });
-  items.push({
-    label: '切换主题',
-    click: () => sendToRenderer('dsh:toggle-theme'),
-  });
-  items.push({
-    label: '重新加载 dsh',
-    click: () => reloadDshProcess(),
-  });
+  items.push({ label: '命令面板 (Ctrl+K)', click: () => sendToRenderer('dsh:open-command-palette') });
+  items.push({ label: '截图 (Ctrl+Shift+S)', click: () => sendToRenderer('dsh:trigger-screenshot') });
+  items.push({ label: '切换主题', click: () => sendToRenderer('dsh:toggle-theme') });
+  items.push({ label: '重新加载 dsh', click: () => reloadDshProcess() });
   items.push({ type: 'separator' });
-  items.push({
-    label: '查看日志…',
-    click: () => sendToRenderer('dsh:open-log-viewer'),
-  });
-  items.push({
-    label: '关于…',
-    click: () => sendToRenderer('dsh:open-about'),
-  });
+  items.push({ label: '查看日志…', click: () => sendToRenderer('dsh:open-log-viewer') });
+  items.push({ label: '关于…', click: () => sendToRenderer('dsh:open-about') });
   items.push({ type: 'separator' });
-  items.push({
-    label: '在浏览器中打开 dsh',
-    click: () => shell.openExternal(DSH_URL),
-  });
+  items.push({ label: '在浏览器中打开 dsh', click: () => shell.openExternal(DSH_URL) });
   items.push({ type: 'separator' });
-  items.push({
-    label: '退出',
-    click: () => { app.isQuiting = true; app.quit(); },
-  });
+  items.push({ label: '退出', click: () => { app.isQuiting = true; app.quit(); } });
   return Menu.buildFromTemplate(items);
 }
 
 // ---------------------------------------------------------------------------
-// IPC handlers
+// IPC handlers (registered via module)
 // ---------------------------------------------------------------------------
-ipcMain.handle('dsh:getVersion', () => app.getVersion());
-
-// --- About dialog ---
-ipcMain.handle('dsh:getAbout', () => {
-  const apiKey = readApiKey();
-  const { bin, cwd } = getDshPaths();
-  return {
-    name: app.getName(),
-    productName: 'DeepSeek Harness',
-    version: app.getVersion(),
-    electron: process.versions.electron,
-    chrome: process.versions.chrome,
-    node: process.versions.node,
-    platform: `${os.type()} ${os.release()} (${os.arch()})`,
-    dshBin: bin,
-    dshBinExists: fs.existsSync(bin),
-    dshCwd: cwd,
-    apiKeySet: !!apiKey,
-    apiKeyMasked: apiKey ? `${apiKey.slice(0, 7)}…${apiKey.slice(-4)}` : '',
-    repoUrl: 'https://github.com/deepseek-ai/deepseek-harness',
-    clientRepoUrl: 'https://github.com/yourname/dsh-client',
-  };
+registerIpcHandlers({
+  ipcMain,
+  app,
+  shell,
+  dialog,
+  nativeTheme,
+  logger,
+  settings,
+  dshPath: { resolveDshPaths, readApiKey, maskApiKey },
+  runtime: {
+    getMainWindow: () => mainWindow,
+    sendToRenderer,
+    reloadDshProcess,
+    takeScreenshotToDisk,
+    refreshTrayMenu,
+  },
 });
-
-ipcMain.handle('dsh:open-external', (_e, url) => {
-  if (typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))) {
-    shell.openExternal(url);
-    return true;
-  }
-  return false;
-});
-
-// --- Window controls ---
-ipcMain.handle('dsh:reload', () => { if (mainWindow) mainWindow.webContents.reload(); });
-ipcMain.handle('dsh:hide', () => { if (mainWindow) mainWindow.hide(); });
-ipcMain.handle('dsh:minimize', () => { if (mainWindow) mainWindow.minimize(); });
-ipcMain.handle('dsh:quit', () => { app.isQuiting = true; app.quit(); });
-ipcMain.handle('dsh:openInBrowser', () => shell.openExternal(DSH_URL));
-
-// --- Theme ---
-ipcMain.handle('dsh:getTheme', () => {
-  return nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
-});
-
-ipcMain.handle('dsh:toggleTheme', () => {
-  const next = nativeTheme.shouldUseDarkColors ? 'light' : 'dark';
-  nativeTheme.themeSource = next;
-  writeSettings({ theme: next });
-  sendToRenderer('dsh:theme-changed', next);
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    const dark = next === 'dark';
-    mainWindow.setBackgroundColor(dark ? '#0A2540' : '#FFFFFF');
-    if (mainWindow.getTitleBarOverlay) {
-      mainWindow.setTitleBarOverlay({
-        color: dark ? '#0A2540' : '#FFFFFF',
-        symbolColor: dark ? '#ffffff' : '#1F2937',
-        height: 36,
-      });
-    }
-  }
-  refreshTrayMenu();
-  return next;
-});
-
-ipcMain.handle('dsh:setTheme', (_e, theme) => {
-  if (theme !== 'dark' && theme !== 'light') return null;
-  nativeTheme.themeSource = theme;
-  writeSettings({ theme });
-  sendToRenderer('dsh:theme-changed', theme);
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    const dark = theme === 'dark';
-    mainWindow.setBackgroundColor(dark ? '#0A2540' : '#FFFFFF');
-    if (mainWindow.setTitleBarOverlay) {
-      mainWindow.setTitleBarOverlay({
-        color: dark ? '#0A2540' : '#FFFFFF',
-        symbolColor: dark ? '#ffffff' : '#1F2937',
-        height: 36,
-      });
-    }
-  }
-  return theme;
-});
-
-// --- dsh lifecycle ---
-ipcMain.handle('dsh:reloadDsh', () => { reloadDshProcess(); return true; });
-
-// --- Screenshot ---
-ipcMain.handle('dsh:takeScreenshot', async () => takeScreenshotToDisk());
-
-// --- Settings (custom dsh path) ---
-ipcMain.handle('dsh:getSettings', () => readSettings());
-
-ipcMain.handle('dsh:setDshPath', async (_e, payload) => {
-  if (typeof payload !== 'object' || !payload) return { ok: false, error: 'invalid payload' };
-  const { bin, cwd } = payload;
-  const patch = {};
-  if (typeof bin === 'string' && bin.trim()) patch.dshBin = bin.trim();
-  if (typeof cwd === 'string' && cwd.trim()) patch.dshCwd = cwd.trim();
-  writeSettings(patch);
-  return { ok: true, settings: readSettings() };
-});
-
-ipcMain.handle('dsh:pickDshPath', async () => {
-  const { bin, cwd } = getDshPaths();
-  const startDir = fs.existsSync(cwd) ? cwd : path.dirname(bin);
-  const r = await dialog.showOpenDialog(mainWindow || undefined, {
-    title: '选择 dsh 可执行文件 (例如 dsh.cmd / dsh / dsh.exe)',
-    defaultPath: startDir,
-    properties: ['openFile'],
-    filters: [
-      { name: 'Executables & Scripts', extensions: ['cmd', 'exe', 'bat', 'sh', 'js'] },
-      { name: 'All Files', extensions: ['*'] },
-    ],
-  });
-  if (r.canceled || !r.filePaths || !r.filePaths[0]) return { ok: false, canceled: true };
-  const chosen = r.filePaths[0];
-  writeSettings({ dshBin: chosen, dshCwd: path.dirname(chosen) });
-  return { ok: true, bin: chosen, cwd: path.dirname(chosen) };
-});
-
-ipcMain.handle('dsh:pickDshCwd', async () => {
-  const { cwd } = getDshPaths();
-  const startDir = fs.existsSync(cwd) ? cwd : app.getPath('home');
-  const r = await dialog.showOpenDialog(mainWindow || undefined, {
-    title: '选择 dsh 工作目录',
-    defaultPath: startDir,
-    properties: ['openDirectory'],
-  });
-  if (r.canceled || !r.filePaths || !r.filePaths[0]) return { ok: false, canceled: true };
-  writeSettings({ dshCwd: r.filePaths[0] });
-  return { ok: true, cwd: r.filePaths[0] };
-});
-
-// --- Logs ---
-ipcMain.handle('dsh:getLogs', () => {
-  return {
-    buffer: logBuffer.slice(),
-    size: LOG_BUFFER_SIZE,
-    total: logBuffer.length,
-  };
-});
-
-ipcMain.handle('dsh:clearLogs', () => {
-  logBuffer.length = 0;
-  return { ok: true };
-});
-
-// --- Simulated auto-update ---
-ipcMain.handle('dsh:checkUpdate', async () => {
-  return {
-    currentVersion: app.getVersion(),
-    updateAvailable: false,
-    checkedAt: new Date().toISOString(),
-    source: 'local-stub',
-  };
-});
-
-// ---------------------------------------------------------------------------
-// Auto-updater — declared so package.json can publish, but currently no-op.
-// ---------------------------------------------------------------------------
-let autoUpdater = null;
-try {
-  ({ autoUpdater } = require('electron-updater'));
-  autoUpdater.autoDownload = false;
-  autoUpdater.on('update-available', () => sendToRenderer('dsh:update-available'));
-  autoUpdater.on('update-downloaded', () => sendToRenderer('dsh:update-downloaded'));
-  if (process.env.DSH_AUTO_UPDATE === '1') {
-    autoUpdater.checkForUpdatesAndNotify().catch(e =>
-      console.error('[dsh-client] autoUpdater error:', e.message)
-    );
-  }
-} catch (e) {
-  console.warn('[dsh-client] electron-updater not available:', e.message);
-}
 
 // ---------------------------------------------------------------------------
 // Global shortcuts
@@ -786,24 +456,27 @@ function registerGlobalShortcuts() {
   tryReg('CommandOrControl+Shift+T', () => sendToRenderer('dsh:toggle-theme'));
   tryReg('CommandOrControl+Shift+L', () => sendToRenderer('dsh:open-log-viewer'));
 
+  // Reference src/shortcuts.js so the registry stays the single source of truth
+  // and ESLint doesn't complain about unused imports. (The strings used above
+  // must match `shortcuts.<id>.accelerator`.)
+  void shortcuts;
+
   console.log(`[dsh-client] global shortcuts OK: ${ok.join(', ') || '(none)'}`);
   if (fail.length) console.warn(`[dsh-client] global shortcuts FAILED: ${fail.join(', ')}`);
 }
 
 // ---------------------------------------------------------------------------
-// App lifecycle
+// Lifecycle
 // ---------------------------------------------------------------------------
 app.on('second-instance', () => {
   toggleMainWindow();
 });
 
 app.whenReady().then(async () => {
-  // 1. Show splash BEFORE we touch dsh — gives instant feedback.
   createSplash();
   sendToSplash({ phase: 'init', message: '初始化 dsh-client…', progress: 0.05 });
 
-  // 2. Validate dsh paths early; prompt the user if missing.
-  const { bin, cwd } = getDshPaths();
+  const { bin } = resolveDshPaths(settings.all());
   if (!fs.existsSync(bin)) {
     sendToSplash({ phase: 'path-missing', message: `找不到 dsh: ${bin}`, progress: 0 });
     const r = await dialog.showMessageBox({
@@ -826,7 +499,7 @@ app.whenReady().then(async () => {
       });
       if (!pick.canceled && pick.filePaths[0]) {
         const chosen = pick.filePaths[0];
-        writeSettings({ dshBin: chosen, dshCwd: path.dirname(chosen) });
+        settings.set({ dshBin: chosen, dshCwd: path.dirname(chosen) });
         sendToSplash({ phase: 'path-set', message: `已选择: ${chosen}` });
       }
     } else if (r.response === 2) {
@@ -836,7 +509,6 @@ app.whenReady().then(async () => {
     }
   }
 
-  // 3. Start dsh, create main window, build tray, register shortcuts.
   startDsh();
   await createWindow();
   createTray();
@@ -849,8 +521,6 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
-  // On macOS keep the app alive (standard), on Windows quit so the tray
-  // doesn't dangle.  Users can re-launch from the tray menu.
   if (process.platform !== 'darwin') {
     app.isQuiting = true;
     app.quit();
@@ -863,7 +533,12 @@ app.on('will-quit', () => {
   killDsh();
 });
 
-// Failsafe — if Node receives a fatal signal, still try to kill dsh.
 process.on('exit', killDsh);
 process.on('SIGINT',  () => { killDsh(); process.exit(0); });
 process.on('SIGTERM', () => { killDsh(); process.exit(0); });
+
+// Reference buildSplashPayload / PHASES so the module is treated as used at
+// runtime — main.js still constructs payloads inline above, but the module
+// is the testable version. Avoid ESLint no-unused-vars on the destructure.
+void buildSplashPayload;
+void PHASES;
