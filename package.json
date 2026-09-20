@@ -6,24 +6,24 @@
   "author": {
     "name": "dsh-client contributors",
     "email": "",
-    "url": "https://github.com/yourname/dsh-client"
+    "url": "https://github.com/yace84295-ctrl/dsh-client"
   },
   "contributors": [
     {
       "name": "dsh-client contributors",
-      "url": "https://github.com/yourname/dsh-client"
+      "url": "https://github.com/yace84295-ctrl/dsh-client"
     }
   ],
   "license": "MIT",
   "license-file": "LICENSE",
-  "homepage": "https://github.com/yourname/dsh-client#readme",
+  "homepage": "https://github.com/yace84295-ctrl/dsh-client#readme",
   "bugs": {
-    "url": "https://github.com/yourname/dsh-client/issues",
+    "url": "https://github.com/yace84295-ctrl/dsh-client/issues",
     "email": ""
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourname/dsh-client.git"
+    "url": "https://github.com/yace84295-ctrl/dsh-client.git"
   },
   "keywords": [
     "electron",
@@ -42,7 +42,7 @@
   ],
   "funding": {
     "type": "github",
-    "url": "https://github.com/sponsors/yourname"
+    "url": "https://github.com/sponsors/yace84295-ctrl"
   },
   "engines": {
     "node": ">=22",
@@ -68,7 +68,7 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
-    "syntax-check": "node --check main.js && node --check preload.js && for f in src/*.js; do node --check \"$f\" || exit 1; done && echo \"syntax OK\"",
+    "syntax-check": "node scripts/syntax-check.mjs",
     "build": "electron-builder --win",
     "dist": "electron-builder --win",
     "build:portable": "electron-builder --win portable",
@@ -125,7 +125,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "yourname",
+        "owner": "yace84295-ctrl",
         "repo": "dsh-client"
       }
     ]

@@ -24,7 +24,9 @@ function spawnDsh({ bin, cwd, env = {} }) {
     throw new Error(`dsh 工作目录不存在: ${cwd}`);
   }
 
-  const child = spawn('cmd.exe', ['/c', bin, 'web'], {
+  // `--no-open`: dsh otherwise launches the system default browser as well,
+  // which duplicates the UI that this app already renders itself.
+  const child = spawn('cmd.exe', ['/c', bin, 'web', '--no-open'], {
     cwd,
     env: { ...process.env, ...env, NODE_ENV: env.NODE_ENV || process.env.NODE_ENV || 'production' },
     windowsHide: true,

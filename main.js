@@ -290,6 +290,7 @@ async function createWindow() {
   });
 
   sendToSplash({ phase: 'waiting', message: `等待 dsh 在端口 ${DSH_PORT} 响应…` });
+  let dshStarted = false;
   try {
     await waitForDshReady({
       timeoutMs: READY_TIMEOUT_MS,
@@ -303,6 +304,7 @@ async function createWindow() {
         }
       },
     });
+    dshStarted = true;
     sendToSplash({ phase: 'ready', message: 'dsh 已就绪,加载界面…', progress: 1 });
   } catch (err) {
     console.error('[dsh-client] dsh start failed:', err.message);
@@ -313,12 +315,20 @@ async function createWindow() {
       `<html><body style="background:#0A2540;color:#fff;font-family:sans-serif;padding:40px">
         <h1>dsh 启动失败</h1>
         <pre style="background:#06223a;padding:16px;border-radius:6px">${err.message}</pre>
-        <button onclick="location.reload()" style="padding:10px 20px;cursor:pointer">重试</button>
+        <p style="opacity:.75">
+          常见原因:端口 ${DSH_PORT} 被别的进程占用,或系统可用内存/提交量不足导致 dsh 子进程被系统杀掉。
+        </p>
+        <button onclick="window.dsh && window.dsh.reloadDsh()" style="padding:10px 20px;cursor:pointer">重启 dsh</button>
+        <p style="opacity:.6;font-size:13px">若重启后界面仍未恢复,按 Ctrl+Shift+R 重新加载窗口。</p>
       </body></html>`
     )}`);
   }
 
-  await win.loadFile(path.join(__dirname, 'index.html'));
+  // 启动失败时保留上面的错误页 —— 之前这里无条件 loadFile(index.html),
+  // 会把它盖成 iframe 连不上的空白界面,用户看不到失败原因。
+  if (dshStarted) {
+    await win.loadFile(path.join(__dirname, 'index.html'));
+  }
 
   mainWindow = win;
   return win;
