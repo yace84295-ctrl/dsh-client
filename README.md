@@ -5,7 +5,7 @@
 [![Electron](https://img.shields.io/badge/Electron-32-47848F?logo=electron)](https://www.electronjs.org/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?logo=windows)](https://www.microsoft.com/windows)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Release](https://img.shields.io/badge/Release-v0.3.0-orange)](CHANGELOG.md)
+[![Release](https://img.shields.io/badge/Release-v0.3.1-orange)](CHANGELOG.md)
 [![Node](https://img.shields.io/badge/Node-%E2%89%A522-339933?logo=node.js)](https://nodejs.org)
 
 **把 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 Web UI 装进一个真正的 Windows 桌面应用 — 单文件便携 .exe,免安装,自启动 dsh 子进程,系统托盘常驻。**
@@ -15,6 +15,37 @@
 [English](#english) · [中文](#中文) · [Install](#installation--安装) · [Shortcuts](#keyboard-shortcuts--快捷键) · [Build](#building-from-source--从源码构建)
 
 </div>
+
+---
+
+> ## ⚠️ 发布前必读:替换 `yourname/dsh-client` 为你的实际 GitHub 用户名
+>
+> 本仓库为发布准备模板。所有指向 `https://github.com/yourname/dsh-client` 的链接都使用占位符 `yourname/dsh-client`。
+> **正式发布前**(回电脑、推送前),请用一行 sed 把所有 `yourname/dsh-client` 替换成你真实的 GitHub 路径(`<你的GitHub用户名>/dsh-client`):
+>
+> ```bash
+> # Linux / macOS / git-bash
+> cd dsh-client
+> grep -rl 'yourname/dsh-client' . \
+>   --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=coverage \
+>   | xargs sed -i 's|yourname/dsh-client|<你的用户名>/dsh-client|g'
+> git diff --stat
+> git add . && git commit -m "chore: replace placeholder repo path with real GitHub username"
+> git push -u origin main
+> ```
+>
+> 受影响文件(发布前必改):
+>
+> | 文件 | 说明 |
+> |------|------|
+> | `README.md` | 顶部 badge、克隆链接、Issues 链接 |
+> | `CHANGELOG.md` | 底部版本对比链接 |
+> | `package.json` | `author.url`、`repository.url`、`bugs.url`、`homepage`、`build.publish.owner` |
+> | `src/ipc-handlers.js` | 关于对话框里的 `clientRepoUrl` |
+> | `docs/development.md` | 克隆链接 |
+> | `promo/*.md` | 三篇推广文里所有 `yourname/dsh-client`(以及 5 处 `USER/REPO` 标注) |
+>
+> 详细步骤见 [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md) 与 [`GITHUB_PUBLISH_GUIDE.md`](GITHUB_PUBLISH_GUIDE.md)。
 
 ---
 

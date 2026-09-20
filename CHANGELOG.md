@@ -3,11 +3,72 @@
 本文件遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 规范,
 本项目版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+> 📝 占位符提示:文末所有 `https://github.com/yourname/dsh-client/...` 链接中的 `yourname/dsh-client` 是占位符,
+> 发布前请用真实 GitHub 用户名替换。详见 [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md)。
+
 ---
 
 ## [Unreleased]
 
 无。
+
+---
+
+## [0.3.1] - 2026-09-03 — Final prep for open-source
+
+### 新增 (Added)
+
+- **🧩 模块化重构** — 把单文件 `main.js`(860 行)拆成 8 个可测试模块 + 薄 `main.js` 总装(`src/` 模块自身再由清晰的 JSDoc 总览):
+  - `src/commands.js` — 命令面板 13 条命令注册表(序列化 opcode,渲染层翻 IPC)
+  - `src/dsh-manager.js` — dsh 子进程生命周期(spawn / ready-poll / restart / kill-tree)
+  - `src/dsh-path.js` — dsh 路径解析 + DEEPSEEK_API_KEY 遮蔽
+  - `src/ipc-handlers.js` — 26 个 IPC 桥,统一 `handle/handleSafe` 注册
+  - `src/logger.js` — 1000 行环形缓冲 + stdout/stderr 收集
+  - `src/settings.js` — 路径 / 主题 / 窗口位置 / dsh 二进制路径持久化
+  - `src/shortcuts.js` — 全局快捷键注册 + 冲突处理
+  - `src/splash.js` — 启动画面阶段提示
+  - `src/window-state.js` — 多显示器安全的窗口位置记忆
+- **🧪 Vitest 测试套件** — 124 个测试,9 个 spec 文件,76.5% 行覆盖率(`coverage/lcov.info`):
+  - `commands.spec.js`、`dsh-manager.spec.js`、`dsh-path.spec.js`、`ipc-handlers.spec.js`、`logger.spec.js`、`settings.spec.js`、`shortcuts.spec.js`、`splash.spec.js`、`window-state.spec.js`
+- **📸 截图资料** — `docs/screenshots/` 下 4 张演示图(浅色主界面 / 深色主界面 / 命令面板 / 关于对话框)
+- **🤖 GitHub Actions** — 3 个工作流(`.github/workflows/`):
+  - `test.yml` — vitest 跑测(被 build/lint 复用)
+  - `build.yml` — Windows-latest 跑 lint + test + portable 打包,产物上传 14 天
+  - `lint.yml` — 单独 lint 任务
+  - `release.yml` — tag 触发构建并 `softprops/action-gh-release@v2` 发 draft release
+- **📝 Issue / PR 模板** — `.github/ISSUE_TEMPLATE/`:`bug_report.md` / `feature_request.md` / `question.md`
+- **📜 PR 模板** — `.github/PULL_REQUEST_TEMPLATE.md`
+- **📰 推广文合集** — `promo/` 3 篇:
+  - `article-v2ex-juejin.md`(~2300 字,技术深度 + 踩坑)
+  - `article-zhihu-wechat.md`(~2900 字,故事 + 行业观察)
+  - `article-twitter-weibo-xiaohongshu.md`(7 条推 + 2 条微博 + 1 篇小红书笔记)
+- **📚 文档套件** — `docs/`:
+  - `architecture.md` — 模块拓扑、数据流、依赖图
+  - `development.md` — 本地开发、调试、热重载
+  - `keyboard-shortcuts.md` — 9 个快捷键完整说明
+  - `screenshot-script.js` — Playwright 截图脚本
+- **⚙️ 工程化配置** — `.editorconfig`、`.prettierrc.json`、`.prettierignore`、`eslint.config.js`、`vitest.config.js`、`.gitattributes`
+- **📦 发布辅助** — `GITHUB_SETUP.md`、`RELEASE_READY.md`、`RELEASE_CHECKLIST.md`、`GITHUB_PUBLISH_GUIDE.md`、`CHANGELOG_VERSION.md`
+- **🤝 社区文件** — `LICENSE`(MIT)、`CONTRIBUTING.md`、`SECURITY.md`、`CODE_OF_CONDUCT.md`
+
+### 修改 (Changed)
+
+- `main.js` 从 860 行拆为 544 行总装(剩余逻辑全部下沉 `src/`),可测性大幅提升
+- `preload.js` 维持 26 个 `window.dsh.*` API 不变,确保 `index.html` 无需改
+- `package.json` 补全 npm 元数据:`author.email`、`contributors`、`funding`、`license-file`、`engines.npm`、`os: ["win32"]`、`cpu: ["x64"]`、`private: false`、`publishConfig.access: "public"`、新增 keywords(`ai-agent` / `command-palette` / `open-source`)
+- README 顶部加 ⚠️ 占位符警告区块 + 文件级影响清单
+
+### 修复 (Fixed)
+
+- `makeSaver`:`win.isDestroyed()` 运算符优先级坑(避免对已销毁窗口调用)
+- `fuzzyScore`:id 完全匹配 + 单词起始位额外加权
+- CSS:`.modal { display: flex }` 在某些场景下覆盖了 `[hidden]` 属性,改为只在可见态强制 flex
+
+### 文件统计 (Stats)
+
+- 源码:`main.js 544 + preload.js 96 + src/*.js 904 + index.html 410 + styles.css 530 + splash.html 110 ≈ 2600 行`
+- 测试:`tests/*.spec.js 124 个用例 / 9 个文件 / 76.5% 行覆盖率`
+- 打包:`dist/dsh-client-portable-0.3.1.exe`(单文件,~92 MB,免安装)
 
 ---
 
@@ -99,7 +160,8 @@
 
 ---
 
-[Unreleased]: https://github.com/yourname/dsh-client/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/yourname/dsh-client/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/yourname/dsh-client/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/yourname/dsh-client/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/yourname/dsh-client/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/yourname/dsh-client/releases/tag/v0.1.0

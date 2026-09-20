@@ -51,5 +51,10 @@ coverage/
 *.orig
 .tmp/
 
-# Generated bundle (kept only locally for one-shot push to GitHub)
-# dsh-client.bundle
+# Generated bundle (regenerable from git, kept locally as backup)
+# To regenerate: git bundle create dsh-client.bundle --all
+dsh-client.bundle
+
+# Sandbox test artifacts
+.test-settings.json
+*.test-settings.json
