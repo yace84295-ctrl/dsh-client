@@ -12,6 +12,8 @@ import {
   pathsLookValid,
   maskApiKey,
   defaultEnvFile,
+  candidateEnvFiles,
+  resolveEnvFile,
   DEFAULT_DSH_BIN,
   DEFAULT_DSH_CWD,
 } from '../../src/dsh-path.js';
@@ -156,5 +158,70 @@ describe('defaultEnvFile', () => {
     } finally {
       delete process.env.DSH_ENV_FILE;
     }
+  });
+});
+
+describe('env file resolution', () => {
+  let root;
+  let saved;
+  const KEYS = ['DSH_ENV_FILE', 'APPDATA', 'LOCALAPPDATA'];
+
+  beforeEach(() => {
+    saved = {};
+    for (const k of KEYS) saved[k] = process.env[k];
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-envres-'));
+    process.env.APPDATA = path.join(root, 'roaming');
+    process.env.LOCALAPPDATA = path.join(root, 'local');
+    delete process.env.DSH_ENV_FILE;
+  });
+
+  afterEach(() => {
+    for (const k of KEYS) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
+    try { fs.rmSync(root, { recursive: true, force: true }); } catch (_) {}
+  });
+
+  const own = () => path.join(process.env.APPDATA, 'dsh-client', '.env');
+  const legacy = () => path.join(process.env.LOCALAPPDATA, 'hermes', '.env');
+
+  function write(file, body) {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, body);
+  }
+
+  it('lists our own config dir before the legacy hermes location', () => {
+    expect(candidateEnvFiles()).toEqual([own(), legacy()]);
+  });
+
+  it('puts DSH_ENV_FILE first when set', () => {
+    process.env.DSH_ENV_FILE = path.join(root, 'custom.env');
+    expect(candidateEnvFiles()[0]).toBe(process.env.DSH_ENV_FILE);
+  });
+
+  it('resolves and reads our own env file when it exists', () => {
+    write(own(), 'DEEPSEEK_API_KEY=sk-own\n');
+    expect(resolveEnvFile()).toBe(own());
+    expect(readApiKey()).toBe('sk-own');
+  });
+
+  it('falls back to the legacy hermes env file when ours is absent', () => {
+    write(legacy(), 'DEEPSEEK_API_KEY=sk-legacy\n');
+    expect(resolveEnvFile()).toBe(legacy());
+    expect(readApiKey()).toBe('sk-legacy');
+  });
+
+  it('points error messages at our own path when nothing exists', () => {
+    expect(resolveEnvFile()).toBe(own());
+  });
+
+  it('lets DSH_ENV_FILE win over both', () => {
+    write(own(), 'DEEPSEEK_API_KEY=sk-own\n');
+    write(legacy(), 'DEEPSEEK_API_KEY=sk-legacy\n');
+    process.env.DSH_ENV_FILE = path.join(root, 'explicit.env');
+    write(process.env.DSH_ENV_FILE, 'DEEPSEEK_API_KEY=sk-explicit\n');
+    expect(resolveEnvFile()).toBe(process.env.DSH_ENV_FILE);
+    expect(readApiKey()).toBe('sk-explicit');
   });
 });

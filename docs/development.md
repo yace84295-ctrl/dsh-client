@@ -13,7 +13,7 @@ This guide is for contributors who want to **run dsh-client locally** and **iter
   npm init -y
   npm i deepseek-harness
   ```
-- **DeepSeek API key** — set `%LOCALAPPDATA%\hermes\.env`:
+- **DeepSeek API key** — set `%APPDATA%\dsh-client\.env` (or `DSH_ENV_FILE`):
   ```env
   DEEPSEEK_API_KEY=sk-...
   ```

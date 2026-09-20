@@ -58,7 +58,7 @@ npm start
 
 1. **Node.js 22+** — [下载](https://nodejs.org/)
 2. **dsh (DeepSeek Harness)** — 通过 `npm i -g deepseek-harness` 安装,或确保 `dsh.cmd` 在路径上
-3. **DeepSeek API key** — 在 `%LOCALAPPDATA%\hermes\.env` 写入:
+3. **DeepSeek API key** — 在 `%APPDATA%\dsh-client\.env` 写入(该目录首次启动后自动创建,也可用 `DSH_ENV_FILE` 指向任意路径):
    ```env
    DEEPSEEK_API_KEY=sk-...
    ```
@@ -114,7 +114,7 @@ npm start
 
 - **"找不到 dsh: C:/Users/..."** → 启动时会自动弹窗让你手动选 `dsh.cmd` 路径
 - **端口 3080 已被占用** → `taskkill /f /im node.exe /fi "WINDOWTITLE eq dsh*"`,然后重启
-- **DEEPSEEK_API_KEY 未找到** → 检查 `%LOCALAPPDATA%\hermes\.env` 是否存在并含 `DEEPSEEK_API_KEY=...`
+- **DEEPSEEK_API_KEY 未找到** → 检查 `%APPDATA%\dsh-client\.env` 是否存在并含 `DEEPSEEK_API_KEY=...`(旧版路径 `%LOCALAPPDATA%\hermes\.env` 仍作为回退读取)
 - **npm install 卡住** → 设 `ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/` 后重试
 
 ---
@@ -159,7 +159,7 @@ npm start
 
 1. **Node.js 22+** — [download](https://nodejs.org/)
 2. **dsh (DeepSeek Harness)** — `npm i -g deepseek-harness`, or make sure `dsh.cmd` is on `PATH`
-3. **DeepSeek API key** — write `%LOCALAPPDATA%\hermes\.env`:
+3. **DeepSeek API key** — write `%APPDATA%\dsh-client\.env` (created on first launch; or point `DSH_ENV_FILE` anywhere):
    ```env
    DEEPSEEK_API_KEY=sk-...
    ```

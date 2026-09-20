@@ -11,8 +11,36 @@ const path = require('path');
 const DEFAULT_DSH_BIN = 'C:/Users/111/dsh-scratch/node_modules/.bin/dsh.cmd';
 const DEFAULT_DSH_CWD = 'C:/Users/111/dsh-scratch';
 
+/** Candidate env files, highest priority first. */
+function candidateEnvFiles() {
+  const home = os.homedir();
+  const appData = process.env.APPDATA || path.join(home, 'AppData/Roaming');
+  const localAppData = process.env.LOCALAPPDATA || path.join(home, 'AppData/Local');
+  const list = [];
+  if (process.env.DSH_ENV_FILE) list.push(process.env.DSH_ENV_FILE);
+  // our own config dir, next to dsh-client-settings.json
+  list.push(path.join(appData, 'dsh-client', '.env'));
+  // legacy location, kept as a read-only fallback so existing setups keep working
+  list.push(path.join(localAppData, 'hermes', '.env'));
+  return list;
+}
+
+/** Preferred env file location (what "set your key here" messages point at). */
 function defaultEnvFile() {
-  return process.env.DSH_ENV_FILE || path.join(os.homedir(), 'AppData/Local/hermes/.env');
+  return candidateEnvFiles()[0];
+}
+
+/** First candidate that exists on disk, else the preferred one. */
+function resolveEnvFile() {
+  const candidates = candidateEnvFiles();
+  const found = candidates.find((f) => {
+    try {
+      return fs.existsSync(f);
+    } catch (_err) {
+      return false;
+    }
+  });
+  return found || candidates[0];
 }
 
 /**
@@ -36,7 +64,7 @@ function resolveDshPaths(settings) {
 
 /** Read DEEPSEEK_API_KEY from the env file. Returns '' if missing or malformed. */
 function readApiKey(envFile) {
-  const file = envFile || defaultEnvFile();
+  const file = envFile || resolveEnvFile();
   try {
     const text = fs.readFileSync(file, 'utf8');
     const m = text.match(/^DEEPSEEK_API_KEY\s*=\s*(.+)$/m);
@@ -72,4 +100,6 @@ module.exports = {
   pathsLookValid,
   maskApiKey,
   defaultEnvFile,
+  candidateEnvFiles,
+  resolveEnvFile,
 };

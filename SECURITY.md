@@ -57,7 +57,7 @@ We depend on `electron-updater` but **do not call `checkForUpdatesAndNotify()`**
 
 ### 5. The DeepSeek API key is read from a plaintext file
 
-`DEEPSEEK_API_KEY` is read from `%LOCALAPPDATA%\hermes\.env` (or `DSH_ENV_FILE`). It's passed to the dsh child process via environment variable.
+`DEEPSEEK_API_KEY` is read from `%APPDATA%\dsh-client\.env` (or `DSH_ENV_FILE`; the older `%LOCALAPPDATA%\hermes\.env` is still read as a fallback). It's passed to the dsh child process via environment variable.
 
 - ✅ The key is never written to disk by us.
 - ✅ The key never leaves your machine except via HTTPS to DeepSeek.

@@ -20,7 +20,7 @@ const {
   Settings,
 } = require('./src/settings');
 const { createLogger } = require('./src/logger');
-const { resolveDshPaths, readApiKey, pathsLookValid, maskApiKey, defaultEnvFile } = require('./src/dsh-path');
+const { resolveDshPaths, readApiKey, pathsLookValid, maskApiKey, resolveEnvFile } = require('./src/dsh-path');
 const { spawnDsh, killProcessTree, waitForDshReady, looksReady, DSH_URL, DSH_PORT, READY_TIMEOUT_MS } = require('./src/dsh-manager');
 const { pickInitialBounds, makeSaver } = require('./src/window-state');
 const { shortcuts } = require('./src/shortcuts');
@@ -30,7 +30,7 @@ const { registerIpcHandlers } = require('./src/ipc-handlers');
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
-const ENV_FILE = process.env.DSH_ENV_FILE || defaultEnvFile();
+const ENV_FILE = resolveEnvFile();
 
 // ---------------------------------------------------------------------------
 // Settings + logger
