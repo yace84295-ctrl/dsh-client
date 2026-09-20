@@ -28,9 +28,7 @@ license: MIT
 
 那天晚上我打开编辑器,建了个文件夹叫 `dsh-client`。
 
-![主界面](https://github.com/yourname/dsh-client/raw/main/docs/screenshots/screenshot-light.png)
-
-> 文中 `USER/REPO` 是占位符,请替换成实际仓库路径。
+![主界面](https://github.com/yace84295-ctrl/dsh-client/raw/main/docs/screenshots/screenshot-light.png)
 
 ## 二、浏览器不是不能用,是不合适
 
@@ -92,7 +90,7 @@ dsh 还是 Dev Preview,偶尔会卡住不响应。以前的流程是:找终端 �
 
 我最常用的是「在系统浏览器中打开 dsh」——有时候我确实需要把某个长回答丢到浏览器里慢慢看,或者用浏览器的翻译。桌面客户端不应该把你锁死在自己里面。
 
-![命令面板](https://github.com/yourname/dsh-client/raw/main/docs/screenshots/command-palette.png)
+![命令面板](https://github.com/yace84295-ctrl/dsh-client/raw/main/docs/screenshots/command-palette.png)
 
 ### 4. `Ctrl+Shift+L`:日志查看器
 
@@ -104,7 +102,7 @@ dsh 还是 Dev Preview,偶尔会卡住不响应。以前的流程是:找终端 �
 
 一键切,持久化,标题栏跟着变。白天浅色,晚上深色。听起来是最没技术含量的功能,但它是我按得第二多的键。
 
-![深色主题](https://github.com/yourname/dsh-client/raw/main/docs/screenshots/screenshot-dark.png)
+![深色主题](https://github.com/yace84295-ctrl/dsh-client/raw/main/docs/screenshots/screenshot-dark.png)
 
 另外还有一些不需要你操心的东西:自定义 dsh 路径(找不到时弹原生对话框让你选,存下来)、窗口位置记忆(多显示器场景会校验 bounds 是否落在真实存在的屏幕上,拔了外接屏也不会窗口消失)、单实例锁(二次启动聚焦已有窗口而不是开第二个)。
 
@@ -140,7 +138,7 @@ dsh 还是 Dev Preview,偶尔会卡住不响应。以前的流程是:找终端 �
 
 ## 七、来试试
 
-- **仓库**:https://github.com/yourname/dsh-client
+- **仓库**:https://github.com/yace84295-ctrl/dsh-client
 - **下载**:Releases 页面,`dsh-client-portable-0.3.1.exe`,92 MB,免安装,不要管理员权限
 - **前置**:Windows 10/11、dsh(`npm i -g deepseek-harness`)、一个 DeepSeek API key
 - **License**:MIT
@@ -153,7 +151,7 @@ dsh 还是 Dev Preview,偶尔会卡住不响应。以前的流程是:找终端 �
 
 ---
 
-**GitHub**:https://github.com/yourname/dsh-client(请替换)
-**下载**:https://github.com/yourname/dsh-client/releases(请替换)
+**GitHub**:https://github.com/yace84295-ctrl/dsh-client
+**下载**:https://github.com/yace84295-ctrl/dsh-client/releases
 **License**:MIT
 **Stars**:⭐ Star me on GitHub

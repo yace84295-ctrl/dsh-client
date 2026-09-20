@@ -118,7 +118,7 @@
 ### 开发者
 
 ```bash
-git clone https://github.com/yourname/dsh-client.git
+git clone https://github.com/yace84295-ctrl/dsh-client.git
 cd dsh-client
 npm install
 npm start           # 开发运行

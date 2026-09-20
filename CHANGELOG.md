@@ -3,14 +3,20 @@
 本文件遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 规范,
 本项目版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
-> 📝 占位符提示:文末所有 `https://github.com/yourname/dsh-client/...` 链接中的 `yourname/dsh-client` 是占位符,
-> 发布前请用真实 GitHub 用户名替换。详见 [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md)。
-
 ---
 
 ## [Unreleased]
 
-无。
+### 修复 (Fixed)
+
+- 启动 dsh 时不再额外拉起系统默认浏览器:给 `dsh web` 传 `--no-open`,桌面客户端旁不再多出一个重复标签页
+- dsh 启动失败时,「启动失败」页面不再被 `index.html` 立即覆盖,失败原因与「重试」按钮现在真的看得见
+- 错误页的「重试」按钮此前只重刷静态页面(`location.reload()`),现在改走 IPC 真正重启 dsh 子进程
+
+### 修改 (Changed)
+
+- `npm run syntax-check` 从 POSIX 的 `for f in src/*.js` 循环改为跨平台脚本 `scripts/syntax-check.mjs`,修复 Windows(npm 默认 cmd.exe)下必然失败的问题
+- 仓库链接占位符全部替换为真实路径 `yace84295-ctrl/dsh-client`;移除 README / CHANGELOG 顶部的发布前占位符警告区块与推广文里的替换提示
 
 ---
 
@@ -160,8 +166,8 @@
 
 ---
 
-[Unreleased]: https://github.com/yourname/dsh-client/compare/v0.3.1...HEAD
-[0.3.1]: https://github.com/yourname/dsh-client/compare/v0.3.0...v0.3.1
-[0.3.0]: https://github.com/yourname/dsh-client/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/yourname/dsh-client/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/yourname/dsh-client/releases/tag/v0.1.0
+[Unreleased]: https://github.com/yace84295-ctrl/dsh-client/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/yace84295-ctrl/dsh-client/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/yace84295-ctrl/dsh-client/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/yace84295-ctrl/dsh-client/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/yace84295-ctrl/dsh-client/releases/tag/v0.1.0

@@ -73,7 +73,7 @@ function registerIpcHandlers(deps) {
       apiKeySet: !!apiKey,
       apiKeyMasked: dshPath.maskApiKey(apiKey),
       repoUrl: 'https://github.com/deepseek-ai/deepseek-harness',
-      clientRepoUrl: 'https://github.com/yourname/dsh-client',
+      clientRepoUrl: 'https://github.com/yace84295-ctrl/dsh-client',
     };
   });
 

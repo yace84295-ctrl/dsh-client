@@ -21,7 +21,7 @@ This guide is for contributors who want to **run dsh-client locally** and **iter
 ## First-time setup
 
 ```bash
-git clone https://github.com/yourname/dsh-client.git
+git clone https://github.com/yace84295-ctrl/dsh-client.git
 cd dsh-client
 npm install            # downloads Electron (~200 MB) and electron-builder
 npm start              # launches Electron in dev mode
@@ -159,7 +159,7 @@ GitHub Actions:
 To enable auto-update, set the GitHub repo in `package.json`'s `build.publish`:
 
 ```json
-"publish": [{ "provider": "github", "owner": "yourname", "repo": "dsh-client" }]
+"publish": [{ "provider": "github", "owner": "yace84295-ctrl", "repo": "dsh-client" }]
 ```
 
 then set `DSH_AUTO_UPDATE=1` in your build env.

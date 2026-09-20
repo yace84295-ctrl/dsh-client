@@ -11,8 +11,6 @@ note: 每条推文均 ≤280 字符,可独立发布;微博每条 ≤140 字
 
 # 开源 dsh-client,让 DeepSeek Harness 变成 Windows 原生桌面 app
 
-> 全文 `USER/REPO` 为占位符,发布前请替换成真实仓库路径。
-
 ---
 
 ## 一、Twitter / X — 7 条 thread(英文,每条 ≤280 字符)
@@ -24,7 +22,7 @@ DeepSeek open-sourced their agent harness (dsh). It runs `dsh web` and you use i
 
 I got tired of the terminal window I couldn't close, so I wrapped it in a real Windows desktop app.
 
-Open source, MIT: github.com/yourname/dsh-client
+Open source, MIT: github.com/yace84295-ctrl/dsh-client
 ```
 
 **2/7 — 数字**
@@ -92,7 +90,7 @@ It's just a shell — all the AI is upstream in dsh, thanks to the DeepSeek team
 
 MIT licensed. The process manager, global shortcuts and command palette are all standalone modules, steal them freely.
 
-⭐ github.com/yourname/dsh-client
+⭐ github.com/yace84295-ctrl/dsh-client
 Download: /releases
 ```
 
@@ -103,7 +101,7 @@ Download: /releases
 **主发**
 
 ```
-DeepSeek 的 agent 工具 dsh 只能浏览器用,还得常驻一个关不掉的终端。我做了个 Electron 桌面客户端 dsh-client:双击 92MB 免安装 exe 自动拉起 dsh,8 个全局快捷键+命令面板+日志 👉 github.com/yourname/dsh-client
+DeepSeek 的 agent 工具 dsh 只能浏览器用,还得常驻一个关不掉的终端。我做了个 Electron 桌面客户端 dsh-client:双击 92MB 免安装 exe 自动拉起 dsh,8 个全局快捷键+命令面板+日志 👉 github.com/yace84295-ctrl/dsh-client
 ```
 
 **补充(可作评论或第二条)**
@@ -145,7 +143,7 @@ DeepSeek 开源了自家的 agent 工具 dsh,能力真的可以,但用法有点�
 
 技术栈 Electron 32 + Node 24,124 个测试,MIT 协议,想改想抄都随便 🙌
 
-GitHub 搜 USER/REPO,Releases 里直接下 exe,欢迎来点个 star ⭐
+GitHub 搜 yace84295-ctrl/dsh-client,Releases 里直接下 exe,欢迎来点个 star ⭐
 ```
 
 **配图建议(4 张)**
@@ -163,7 +161,7 @@ GitHub 搜 USER/REPO,Releases 里直接下 exe,欢迎来点个 star ⭐
 
 ---
 
-**GitHub**:https://github.com/yourname/dsh-client(请替换)
-**下载**:https://github.com/yourname/dsh-client/releases(请替换)
+**GitHub**:https://github.com/yace84295-ctrl/dsh-client
+**下载**:https://github.com/yace84295-ctrl/dsh-client/releases
 **License**:MIT
 **Stars**:⭐ Star me on GitHub

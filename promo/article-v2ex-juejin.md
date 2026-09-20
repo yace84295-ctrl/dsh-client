@@ -21,9 +21,7 @@ DeepSeek 开源了自家的 agent harness(`dsh`,目前 Dev Preview 阶段),跑�
 
 所以我花了个把小时写了 `dsh-client`:一个 Electron 桌面壳,双击一个 92 MB 的 portable `.exe`,它自己把 dsh 拉起来、等端口就绪、开窗口、嵌 UI;关窗口收托盘,退出时把整个进程树 `taskkill`。现在 v0.3.1,MIT 开源。
 
-![主界面](https://github.com/yourname/dsh-client/raw/main/docs/screenshots/screenshot-light.png)
-
-> 下文里的 `USER/REPO` 是占位符,请替换成实际仓库路径。
+![主界面](https://github.com/yace84295-ctrl/dsh-client/raw/main/docs/screenshots/screenshot-light.png)
 
 ---
 
@@ -142,7 +140,7 @@ const shortcuts = {
 
 `action` 故意是字符串 opcode 而不是函数——registry 可序列化,渲染层再把 opcode 翻成 IPC 调用。测试的时候断言「搜 '主题' 能命中这条」就够了,不用起 Electron。
 
-![命令面板](https://github.com/yourname/dsh-client/raw/main/docs/screenshots/command-palette.png)
+![命令面板](https://github.com/yace84295-ctrl/dsh-client/raw/main/docs/screenshots/command-palette.png)
 
 ### 3. 日志查看器(Ctrl+Shift+L)
 
@@ -158,7 +156,7 @@ const shortcuts = {
 
 深色/浅色一键切,持久化到 `settings.json`,标题栏 chrome 跟着变。无边框 + 全局深蓝品牌色 + 半透明标题栏。这部分纯粹是我个人审美,但 `Ctrl+Shift+T` 在半夜确实有用。
 
-![深色主题](https://github.com/yourname/dsh-client/raw/main/docs/screenshots/screenshot-dark.png)
+![深色主题](https://github.com/yace84295-ctrl/dsh-client/raw/main/docs/screenshots/screenshot-dark.png)
 
 ## 四、工程上的几个决定
 
@@ -195,7 +193,7 @@ Windows 上你必须 `taskkill /pid <pid> /f /t`。少了 `/t` 就是每次退�
 
 ## 六、开源了,以及接下来做什么
 
-- 仓库:https://github.com/yourname/dsh-client
+- 仓库:https://github.com/yace84295-ctrl/dsh-client
 - License:MIT,随便拿去改、拿去内嵌、拿去改名
 - 文档齐了:README(中英双语)、CHANGELOG、CONTRIBUTING、SECURITY、CODE_OF_CONDUCT
 
@@ -212,7 +210,7 @@ Windows 上你必须 `taskkill /pid <pid> /f /t`。少了 `/t` 就是每次退�
 
 ---
 
-**GitHub**:https://github.com/yourname/dsh-client(请替换)
-**下载**:https://github.com/yourname/dsh-client/releases(请替换)
+**GitHub**:https://github.com/yace84295-ctrl/dsh-client
+**下载**:https://github.com/yace84295-ctrl/dsh-client/releases
 **License**:MIT
 **Stars**:⭐ Star me on GitHub
